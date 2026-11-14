@@ -3,17 +3,17 @@ package oned
 import (
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // ITF encodes pairs of digits: the first digit of each pair is encoded in the
 // bars and the second in the spaces. ITF-14 is ITF with a fixed length of 14.
 
 const (
-	itfMaxAvgVariance           = 0.38
-	itfMaxIndividualVariance2x  = 0.5  // 2x wide lines
-	itfMaxIndividualVariance3x  = 0.75 // 3x wide lines
+	itfMaxAvgVariance          = 0.38
+	itfMaxIndividualVariance2x = 0.5  // 2x wide lines
+	itfMaxIndividualVariance3x = 0.75 // 3x wide lines
 )
 
 // Patterns of narrow/wide for digits 0-9, duplicated for 2x and 3x wide.
@@ -176,7 +176,7 @@ func (r *ITFReader) validateQuietZone(row *bitutil.BitArray, startPattern int) e
 	if quietStart < 0 {
 		quietStart = 0
 	}
-	if !row.IsRange(quietStart, startPattern, false) {
+	if ok, err := row.IsRange(quietStart, startPattern, false); err != nil || !ok {
 		return zxinggo.ErrNotFound
 	}
 	return nil
@@ -278,4 +278,3 @@ func decodeITFDigit(counters []int) (int, error) {
 
 // Ensure ITFReader implements RowDecoder at compile time.
 var _ RowDecoder = (*ITFReader)(nil)
-

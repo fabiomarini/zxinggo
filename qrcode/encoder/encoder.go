@@ -6,10 +6,10 @@ import (
 	"math"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/qrcode/decoder"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/qrcode/decoder"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 const numMaskPatterns = 8
@@ -311,8 +311,13 @@ func interleaveWithECBytes(bits *bitutil.BitArray, numTotalBytes, numDataBytes, 
 			numTotalBytes, numDataBytes, numRSBlocks, i)
 
 		dataBytes := make([]byte, numDataBytesInBlock)
-		bits.ToBytes(8*dataBytesOffset, dataBytes, 0, numDataBytesInBlock)
-		ecBytes := generateECBytes(dataBytes, numEcBytesInBlock)
+		if err := bits.ToBytes(8*dataBytesOffset, dataBytes, 0, numDataBytesInBlock); err != nil {
+			return nil, err
+		}
+		ecBytes, err := generateECBytes(dataBytes, numEcBytesInBlock)
+		if err != nil {
+			return nil, err
+		}
 		blocks[i] = blockPair{dataBytes: dataBytes, ecBytes: ecBytes}
 
 		if numDataBytesInBlock > maxNumDataBytes {
@@ -353,7 +358,7 @@ func getNumDataBytesAndNumECBytesForBlockID(numTotalBytes, numDataBytes, numRSBl
 	if blockID >= numRSBlocks {
 		return 0, 0
 	}
-	numRsBlocksInGroup2 := numTotalBytes%numRSBlocks
+	numRsBlocksInGroup2 := numTotalBytes % numRSBlocks
 	numRsBlocksInGroup1 := numRSBlocks - numRsBlocksInGroup2
 	numTotalBytesInGroup1 := numTotalBytes / numRSBlocks
 	numTotalBytesInGroup2 := numTotalBytesInGroup1 + 1
@@ -368,19 +373,21 @@ func getNumDataBytesAndNumECBytesForBlockID(numTotalBytes, numDataBytes, numRSBl
 	return numDataBytesInGroup2, numEcBytesInGroup2
 }
 
-func generateECBytes(dataBytes []byte, numEcBytesInBlock int) []byte {
+func generateECBytes(dataBytes []byte, numEcBytesInBlock int) ([]byte, error) {
 	numDataBytes := len(dataBytes)
 	toEncode := make([]int, numDataBytes+numEcBytesInBlock)
 	for i, b := range dataBytes {
 		toEncode[i] = int(b) & 0xFF
 	}
 	enc := reedsolomon.NewEncoder(reedsolomon.QRCodeField256)
-	enc.Encode(toEncode, numEcBytesInBlock)
+	if err := enc.Encode(toEncode, numEcBytesInBlock); err != nil {
+		return nil, err
+	}
 	ecBytes := make([]byte, numEcBytesInBlock)
 	for i := 0; i < numEcBytesInBlock; i++ {
 		ecBytes[i] = byte(toEncode[numDataBytes+i])
 	}
-	return ecBytes
+	return ecBytes, nil
 }
 
 func chooseMaskPattern(bits *bitutil.BitArray, ecLevel decoder.ErrorCorrectionLevel, version *decoder.Version, matrix *ByteMatrix) int {
@@ -741,7 +748,7 @@ func findMSBSet(value int) int {
 }
 
 // RenderResult renders a QRCode to a BitMatrix with the given dimensions.
-func RenderResult(code *QRCode, width, height, quietZone int) *bitutil.BitMatrix {
+func RenderResult(code *QRCode, width, height, quietZone int) (*bitutil.BitMatrix, error) {
 	input := code.Matrix
 	inputWidth := input.Width
 	inputHeight := input.Height
@@ -771,12 +778,14 @@ func RenderResult(code *QRCode, width, height, quietZone int) *bitutil.BitMatrix
 		for inputX := 0; inputX < inputWidth; inputX++ {
 			if input.Get(inputX, inputY) == 1 {
 				outputX := leftPadding + inputX*multiple
-				output.SetRegion(outputX, outputY, multiple, multiple)
+				if err := output.SetRegion(outputX, outputY, multiple, multiple); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
 
-	return output
+	return output, nil
 }
 
 // ToBitMatrix converts a QRCode's ByteMatrix to a BitMatrix.

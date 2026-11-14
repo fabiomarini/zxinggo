@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // UPCEANEncoder encodes the middle portion of a UPC/EAN barcode.

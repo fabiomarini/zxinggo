@@ -3,9 +3,9 @@ package qrcode
 import (
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/qrcode/decoder"
-	"github.com/ericlevine/zxinggo/qrcode/encoder"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/qrcode/decoder"
+	"github.com/fabiomarini/zxinggo/qrcode/encoder"
 )
 
 func TestRoundTripNumeric(t *testing.T) {

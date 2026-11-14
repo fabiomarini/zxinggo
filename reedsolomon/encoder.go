@@ -1,5 +1,7 @@
 package reedsolomon
 
+import "fmt"
+
 // Encoder performs Reed-Solomon encoding.
 type Encoder struct {
 	field            *GenericGF
@@ -32,24 +34,29 @@ func (e *Encoder) buildGenerator(degree int) *GenericGFPoly {
 
 // Encode appends ecBytes error-correction codewords to the data in toEncode.
 // toEncode must have space for data + ecBytes values.
-func (e *Encoder) Encode(toEncode []int, ecBytes int) {
+func (e *Encoder) Encode(toEncode []int, ecBytes int) error {
 	if ecBytes == 0 {
-		panic("reedsolomon: no error correction bytes")
+		return fmt.Errorf("reedsolomon: no error correction bytes")
 	}
 	dataBytes := len(toEncode) - ecBytes
 	if dataBytes <= 0 {
-		panic("reedsolomon: no data bytes provided")
+		return fmt.Errorf("reedsolomon: no data bytes provided")
 	}
 	generator := e.buildGenerator(ecBytes)
 	infoCoefficients := make([]int, dataBytes)
 	copy(infoCoefficients, toEncode[:dataBytes])
 	info := newGenericGFPoly(e.field, infoCoefficients)
 	info = info.MultiplyByMonomial(ecBytes, 1)
-	remainder := info.Divide(generator)[1]
+	divResult, err := info.Divide(generator)
+	if err != nil {
+		return err
+	}
+	remainder := divResult[1]
 	coefficients := remainder.Coefficients()
 	numZero := ecBytes - len(coefficients)
 	for i := 0; i < numZero; i++ {
 		toEncode[dataBytes+i] = 0
 	}
 	copy(toEncode[dataBytes+numZero:], coefficients)
+	return nil
 }

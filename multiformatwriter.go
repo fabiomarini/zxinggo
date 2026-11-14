@@ -2,8 +2,9 @@ package zxinggo
 
 import (
 	"fmt"
+	"sync"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // MultiFormatWriter is a factory/dispatcher that selects the appropriate Writer
@@ -18,16 +19,23 @@ func NewMultiFormatWriter() *MultiFormatWriter {
 // writerFactory is a function that creates a Writer.
 type writerFactory func() Writer
 
-var writerFactories = map[Format]writerFactory{}
+var (
+	writerMu        sync.RWMutex
+	writerFactories = map[Format]writerFactory{}
+)
 
 // RegisterWriter registers a writer factory for the given format.
 func RegisterWriter(format Format, factory writerFactory) {
+	writerMu.Lock()
+	defer writerMu.Unlock()
 	writerFactories[format] = factory
 }
 
 // Encode encodes the given contents into a barcode of the specified format.
 func (w *MultiFormatWriter) Encode(contents string, format Format, width, height int, opts *EncodeOptions) (*bitutil.BitMatrix, error) {
+	writerMu.RLock()
 	factory, ok := writerFactories[format]
+	writerMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("no writer registered for format %s: %w", format, ErrWriter)
 	}

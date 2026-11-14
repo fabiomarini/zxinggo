@@ -4,16 +4,16 @@ import (
 	"math"
 	"sort"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/internal"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/internal"
 )
 
 const (
-	maxModuleCountPerEdge      = 180.0
-	minModuleCountPerEdge      = 9.0
-	diffModSizeCutoffPercent   = 0.05
-	diffModSizeCutoff          = 0.5
+	maxModuleCountPerEdge    = 180.0
+	minModuleCountPerEdge    = 9.0
+	diffModSizeCutoffPercent = 0.05
+	diffModSizeCutoff        = 0.5
 )
 
 // DetectMulti detects multiple QR codes in the given image.

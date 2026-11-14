@@ -14,10 +14,10 @@ package decoder
 import (
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/charset"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/charset"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ type DecoderResult struct {
 // ---------------------------------------------------------------------------
 
 const (
-	tableUpper  = iota
+	tableUpper = iota
 	tableLower
 	tableMixed
 	tableDigit
@@ -414,23 +414,6 @@ func readCodeJava(rawbits []bool, startIndex, length int) int {
 		}
 	}
 	return res
-}
-
-// readCode reads bitsToRead bits starting at index from the corrected bit
-// stream and returns the integer value (MSB first) together with the new index.
-// Returns -1 if not enough bits remain.
-func readCode(correctedBits []bool, index, bitsToRead, endIndex int) (int, int) {
-	if index+bitsToRead > endIndex {
-		return -1, endIndex
-	}
-	code := 0
-	for i := index; i < index+bitsToRead; i++ {
-		code <<= 1
-		if correctedBits[i] {
-			code |= 1
-		}
-	}
-	return code, index + bitsToRead
 }
 
 // ---------------------------------------------------------------------------

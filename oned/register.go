@@ -1,6 +1,6 @@
 package oned
 
-import zxinggo "github.com/ericlevine/zxinggo"
+import zxinggo "github.com/fabiomarini/zxinggo"
 
 func init() {
 	// Register all 1D readers via the multi-format 1D reader.

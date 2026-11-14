@@ -3,8 +3,8 @@ package detector
 import (
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 var (
@@ -37,7 +37,10 @@ var rotations = [4]int{0, 180, 270, 90}
 // codes; otherwise at most one code will be found and returned.
 func Detect(matrix *bitutil.BitMatrix, multiple bool, tryHarder bool) (*PDF417DetectorResult, error) {
 	for _, rotation := range rotations {
-		bitMatrix := applyRotation(matrix, rotation)
+		bitMatrix, err := applyRotation(matrix, rotation)
+		if err != nil {
+			return nil, err
+		}
 		barcodeCoordinates := detect(multiple, bitMatrix)
 		if len(barcodeCoordinates) > 0 {
 			return &PDF417DetectorResult{
@@ -56,13 +59,15 @@ func Detect(matrix *bitutil.BitMatrix, multiple bool, tryHarder bool) (*PDF417De
 }
 
 // applyRotation applies a rotation to the supplied BitMatrix.
-func applyRotation(matrix *bitutil.BitMatrix, rotation int) *bitutil.BitMatrix {
+func applyRotation(matrix *bitutil.BitMatrix, rotation int) (*bitutil.BitMatrix, error) {
 	if rotation%360 == 0 {
-		return matrix
+		return matrix, nil
 	}
 	newMatrix := matrix.Clone()
-	newMatrix.Rotate(rotation)
-	return newMatrix
+	if err := newMatrix.Rotate(rotation); err != nil {
+		return nil, err
+	}
+	return newMatrix, nil
 }
 
 // detect detects PDF417 codes in an image. Only checks 0 degree rotation.

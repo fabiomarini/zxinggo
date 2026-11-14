@@ -2,7 +2,7 @@
 package multi
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
+	zxinggo "github.com/fabiomarini/zxinggo"
 )
 
 const (
@@ -89,29 +89,29 @@ func (r *GenericMultipleBarcodeReader) doDecodeMultiple(
 
 	// Decode left of barcode
 	if minX > float64(minDimensionToRecur) {
-		cropped := image.Crop(0, 0, int(minX), height)
-		if cropped != nil {
+		cropped, cerr := image.Crop(0, 0, int(minX), height)
+		if cerr == nil {
 			r.doDecodeMultiple(cropped, opts, results, xOffset, yOffset, currentDepth+1)
 		}
 	}
 	// Decode above barcode
 	if minY > float64(minDimensionToRecur) {
-		cropped := image.Crop(0, 0, width, int(minY))
-		if cropped != nil {
+		cropped, cerr := image.Crop(0, 0, width, int(minY))
+		if cerr == nil {
 			r.doDecodeMultiple(cropped, opts, results, xOffset, yOffset, currentDepth+1)
 		}
 	}
 	// Decode right of barcode
 	if maxX < float64(width-minDimensionToRecur) {
-		cropped := image.Crop(int(maxX), 0, width-int(maxX), height)
-		if cropped != nil {
+		cropped, cerr := image.Crop(int(maxX), 0, width-int(maxX), height)
+		if cerr == nil {
 			r.doDecodeMultiple(cropped, opts, results, xOffset+int(maxX), yOffset, currentDepth+1)
 		}
 	}
 	// Decode below barcode
 	if maxY < float64(height-minDimensionToRecur) {
-		cropped := image.Crop(0, int(maxY), width, height-int(maxY))
-		if cropped != nil {
+		cropped, cerr := image.Crop(0, int(maxY), width, height-int(maxY))
+		if cerr == nil {
 			r.doDecodeMultiple(cropped, opts, results, xOffset, yOffset+int(maxY), currentDepth+1)
 		}
 	}

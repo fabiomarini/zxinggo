@@ -3,17 +3,17 @@ package oned
 import (
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
+	zxinggo "github.com/fabiomarini/zxinggo"
 )
 
 // RSS utility types and functions, ported from Java ZXing's
 // AbstractRSSReader, DataCharacter, FinderPattern, Pair, and RSSUtils.
 
 const (
-	rssMaxAvgVariance          = 0.2
-	rssMaxIndividualVariance   = 0.45
-	rssMinFinderPatternRatio   = 9.5 / 12.0
-	rssMaxFinderPatternRatio   = 12.5 / 14.0
+	rssMaxAvgVariance        = 0.2
+	rssMaxIndividualVariance = 0.45
+	rssMinFinderPatternRatio = 9.5 / 12.0
+	rssMaxFinderPatternRatio = 12.5 / 14.0
 )
 
 // rssDataCharacter encapsulates a single character value with checksum info.

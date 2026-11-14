@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // CodabarWriter encodes Codabar barcodes.
@@ -105,7 +105,7 @@ func (w *CodabarWriter) encode(contents string) ([]bool, error) {
 		for bit < 7 { // A character consists of 7 elements
 			result[position] = color
 			position++
-			if ((code >> (6 - bit)) & 1) == 0 || counter == 1 {
+			if ((code>>(6-bit))&1) == 0 || counter == 1 {
 				color = !color
 				bit++
 				counter = 0

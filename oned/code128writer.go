@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Escape characters used to specify FNC codes in Code 128 input.
@@ -88,7 +88,7 @@ func checkCode128Contents(contents string, forcedCodeSet int) error {
 type code128CType int
 
 const (
-	code128Uncodable  code128CType = iota
+	code128Uncodable code128CType = iota
 	code128OneDigit
 	code128TwoDigits
 	code128FNC1Found

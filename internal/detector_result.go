@@ -1,6 +1,6 @@
 package internal
 
-import "github.com/ericlevine/zxinggo/bitutil"
+import "github.com/fabiomarini/zxinggo/bitutil"
 
 // DetectorResult encapsulates the result of detecting a barcode in an image.
 type DetectorResult struct {

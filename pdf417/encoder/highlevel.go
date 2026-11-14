@@ -100,18 +100,22 @@ func EncodeHighLevel(msg string, compaction Compaction) (string, error) {
 		return "", errors.New("empty message not allowed")
 	}
 
+	// PDF417 without ECI encodes ISO-8859-1 octets; the incoming Go string is
+	// UTF-8. Convert to ISO-8859-1 now so the byte-indexed compaction helpers
+	// below see one byte per character and the output matches the reader's
+	// ISO-8859-1 decoding (runes beyond U+00FF are not encodable without ECI).
+	latin1 := make([]byte, 0, len(msg))
+	for i, ch := range msg {
+		if ch > 255 {
+			return "", fmt.Errorf("non-encodable character detected: %c (Unicode: %d) at position #%d", ch, ch, i)
+		}
+		latin1 = append(latin1, byte(ch))
+	}
+	msg = string(latin1)
+
 	if compaction == CompactionText {
 		for i, ch := range msg {
 			if ch > 127 {
-				return "", fmt.Errorf("non-encodable character detected: %c (Unicode: %d) at position #%d", ch, ch, i)
-			}
-		}
-	}
-
-	// For non-text compaction without ECI, check ISO-8859-1 range
-	if compaction == CompactionAuto || compaction == CompactionByte {
-		for i, ch := range msg {
-			if ch > 255 {
 				return "", fmt.Errorf("non-encodable character detected: %c (Unicode: %d) at position #%d", ch, ch, i)
 			}
 		}
@@ -308,7 +312,7 @@ func encodeBinary(bytes []byte, startpos, count, startmode int, sb *strings.Buil
 	// Encode sixpacks
 	if count >= 6 {
 		chars := make([]rune, 5)
-		for (startpos+count-idx) >= 6 {
+		for (startpos + count - idx) >= 6 {
 			var t int64
 			for i := 0; i < 6; i++ {
 				t <<= 8

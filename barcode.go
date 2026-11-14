@@ -2,10 +2,11 @@
 package zxinggo
 
 import (
+	"fmt"
 	"math"
 	"time"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Format represents a barcode format.
@@ -106,36 +107,6 @@ func CrossProductZ(a, b, c ResultPoint) float64 {
 	return (b.X-a.X)*(c.Y-a.Y) - (b.Y-a.Y)*(c.X-a.X)
 }
 
-// OrderBestPatterns orders three points in an pointA-pointB-pointC order such
-// that AB is less than AC and BC is less than AC.
-func OrderBestPatterns(patterns [3]ResultPoint) [3]ResultPoint {
-	d01 := Distance(patterns[0], patterns[1])
-	d12 := Distance(patterns[1], patterns[2])
-	d02 := Distance(patterns[0], patterns[2])
-
-	var pointA, pointB, pointC ResultPoint
-	if d12 >= d01 && d12 >= d02 {
-		pointA = patterns[0]
-		pointB = patterns[1]
-		pointC = patterns[2]
-	} else if d02 >= d01 && d02 >= d12 {
-		pointA = patterns[1]
-		pointB = patterns[0]
-		pointC = patterns[2]
-	} else {
-		pointA = patterns[2]
-		pointB = patterns[0]
-		pointC = patterns[1]
-	}
-
-	// Use cross product to determine if pointB and pointC should be swapped
-	if CrossProductZ(pointA, pointB, pointC) < 0 {
-		pointB, pointC = pointC, pointB
-	}
-
-	return [3]ResultPoint{pointA, pointB, pointC}
-}
-
 // Result encapsulates the result of decoding a barcode.
 type Result struct {
 	Text      string
@@ -164,8 +135,12 @@ func NewResult(text string, rawBytes []byte, points []ResultPoint, format Format
 	}
 }
 
-// PutMetadata adds a metadata key/value pair.
+// PutMetadata adds a metadata key/value pair. The Metadata map is lazily
+// created, so Results built as struct literals are safe to annotate.
 func (r *Result) PutMetadata(key ResultMetadataKey, value interface{}) {
+	if r.Metadata == nil {
+		r.Metadata = make(map[ResultMetadataKey]interface{})
+	}
 	r.Metadata[key] = value
 }
 
@@ -195,6 +170,11 @@ func (b *BinaryBitmap) Height() int {
 	return b.binarizer.Height()
 }
 
+// Binarizer returns the underlying binarizer.
+func (b *BinaryBitmap) Binarizer() Binarizer {
+	return b.binarizer
+}
+
 // BlackRow returns a row of black/white values.
 func (b *BinaryBitmap) BlackRow(y int, row *bitutil.BitArray) (*bitutil.BitArray, error) {
 	return b.binarizer.BlackRow(y, row)
@@ -214,39 +194,50 @@ func (b *BinaryBitmap) BlackMatrix() (*bitutil.BitMatrix, error) {
 }
 
 // Crop returns a new BinaryBitmap representing a rectangular sub-region.
-// Returns nil if the source doesn't support cropping.
-func (b *BinaryBitmap) Crop(left, top, width, height int) *BinaryBitmap {
-	source := b.binarizer.LuminanceSource()
-	imgSource, ok := source.(*ImageLuminanceSource)
+// It returns an error if the source does not support cropping or the region
+// is out of bounds.
+func (b *BinaryBitmap) Crop(left, top, width, height int) (*BinaryBitmap, error) {
+	source, ok := b.binarizer.LuminanceSource().(croppableSource)
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("crop: source %T does not support cropping", b.binarizer.LuminanceSource())
 	}
-	cropped := imgSource.Crop(left, top, width, height)
-	return NewBinaryBitmap(NewBinarizerFromSource(b.binarizer, cropped))
+	cropped := source.Crop(left, top, width, height)
+	if cropped == nil {
+		return nil, fmt.Errorf("crop: region (%d,%d %dx%d) out of bounds", left, top, width, height)
+	}
+	bin, err := NewBinarizerFromSource(b.binarizer, cropped)
+	if err != nil {
+		return nil, err
+	}
+	return NewBinaryBitmap(bin), nil
 }
 
 // RotateCounterClockwise returns a new BinaryBitmap rotated 90 degrees CCW.
-// The underlying LuminanceSource must be an *ImageLuminanceSource.
-// Returns nil if rotation is not supported.
-func (b *BinaryBitmap) RotateCounterClockwise() *BinaryBitmap {
-	source := b.binarizer.LuminanceSource()
-	imgSource, ok := source.(*ImageLuminanceSource)
+// It returns an error if the source or binarizer does not support rotation.
+func (b *BinaryBitmap) RotateCounterClockwise() (*BinaryBitmap, error) {
+	source, ok := b.binarizer.LuminanceSource().(rotatableSource)
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("rotate: source %T does not support rotation", b.binarizer.LuminanceSource())
 	}
-	rotatedSource := imgSource.RotateCounterClockwise()
-	return NewBinaryBitmap(NewBinarizerFromSource(b.binarizer, rotatedSource))
+	rotated := source.RotateCounterClockwise()
+	if rotated == nil {
+		return nil, fmt.Errorf("rotate: source %T failed to rotate", b.binarizer.LuminanceSource())
+	}
+	bin, err := NewBinarizerFromSource(b.binarizer, rotated)
+	if err != nil {
+		return nil, err
+	}
+	return NewBinaryBitmap(bin), nil
 }
 
-// NewBinarizerFromSource creates a new binarizer of the same type with a new source.
-// This is a factory method to support rotation.
-func NewBinarizerFromSource(template Binarizer, source LuminanceSource) Binarizer {
-	// Use the BinarizerFactory if registered, otherwise fall back
+// NewBinarizerFromSource creates a new binarizer of the same type with a new
+// source. This is a factory method to support rotation and inversion. It
+// returns an error when the binarizer type cannot be re-created.
+func NewBinarizerFromSource(template Binarizer, source LuminanceSource) (Binarizer, error) {
 	if factory, ok := template.(BinarizerFactory); ok {
-		return factory.CreateBinarizer(source)
+		return factory.CreateBinarizer(source), nil
 	}
-	// Default: cannot create
-	return nil
+	return nil, fmt.Errorf("binarizer %T does not support re-creation with a new source", template)
 }
 
 // BinarizerFactory is an interface for binarizers that can create new instances

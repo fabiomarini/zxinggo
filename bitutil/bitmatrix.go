@@ -1,6 +1,7 @@
 package bitutil
 
 import (
+	"fmt"
 	"math/bits"
 	"strings"
 )
@@ -38,69 +39,23 @@ func newBitMatrixFromData(width, height, rowSize int, data []uint32) *BitMatrix 
 	return &BitMatrix{width: width, height: height, rowSize: rowSize, data: data}
 }
 
-// ParseBoolMatrix creates a BitMatrix from a 2D boolean array.
-func ParseBoolMatrix(image [][]bool) *BitMatrix {
+// ParseBoolMatrix creates a BitMatrix from a 2D boolean array. It returns an
+// error when the array is empty.
+func ParseBoolMatrix(image [][]bool) (*BitMatrix, error) {
 	height := len(image)
+	if height == 0 || len(image[0]) == 0 {
+		return nil, fmt.Errorf("bitmatrix: cannot parse empty image")
+	}
 	width := len(image[0])
 	bm := NewBitMatrixWithSize(width, height)
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
+	for i := range height {
+		for j := range width {
 			if image[i][j] {
 				bm.Set(j, i)
 			}
 		}
 	}
-	return bm
-}
-
-// ParseStringMatrix creates a BitMatrix from a string representation.
-func ParseStringMatrix(repr, setStr, unsetStr string) *BitMatrix {
-	bts := make([]bool, len(repr))
-	bitsPos := 0
-	rowStartPos := 0
-	rowLength := -1
-	nRows := 0
-	pos := 0
-	for pos < len(repr) {
-		ch := repr[pos]
-		if ch == '\n' || ch == '\r' {
-			if bitsPos > rowStartPos {
-				if rowLength == -1 {
-					rowLength = bitsPos - rowStartPos
-				} else if bitsPos-rowStartPos != rowLength {
-					panic("bitmatrix: row lengths do not match")
-				}
-				rowStartPos = bitsPos
-				nRows++
-			}
-			pos++
-		} else if len(repr) >= pos+len(setStr) && repr[pos:pos+len(setStr)] == setStr {
-			pos += len(setStr)
-			bts[bitsPos] = true
-			bitsPos++
-		} else if len(repr) >= pos+len(unsetStr) && repr[pos:pos+len(unsetStr)] == unsetStr {
-			pos += len(unsetStr)
-			bts[bitsPos] = false
-			bitsPos++
-		} else {
-			panic("bitmatrix: illegal character encountered")
-		}
-	}
-	if bitsPos > rowStartPos {
-		if rowLength == -1 {
-			rowLength = bitsPos - rowStartPos
-		} else if bitsPos-rowStartPos != rowLength {
-			panic("bitmatrix: row lengths do not match")
-		}
-		nRows++
-	}
-	matrix := NewBitMatrixWithSize(rowLength, nRows)
-	for i := 0; i < bitsPos; i++ {
-		if bts[i] {
-			matrix.Set(i%rowLength, i/rowLength)
-		}
-	}
-	return matrix
+	return bm, nil
 }
 
 // Get returns true if the bit at (x, y) is set.
@@ -134,21 +89,6 @@ func (bm *BitMatrix) FlipAll() {
 	}
 }
 
-// Xor flips bits in this matrix where the mask has bits set.
-func (bm *BitMatrix) Xor(mask *BitMatrix) {
-	if bm.width != mask.width || bm.height != mask.height || bm.rowSize != mask.rowSize {
-		panic("bitmatrix: dimensions do not match")
-	}
-	rowArray := NewBitArray(bm.width)
-	for y := 0; y < bm.height; y++ {
-		offset := y * bm.rowSize
-		row := mask.Row(y, rowArray).BitData()
-		for x := 0; x < bm.rowSize; x++ {
-			bm.data[offset+x] ^= row[x]
-		}
-	}
-}
-
 // Clear clears all bits.
 func (bm *BitMatrix) Clear() {
 	for i := range bm.data {
@@ -156,18 +96,19 @@ func (bm *BitMatrix) Clear() {
 	}
 }
 
-// SetRegion sets a rectangular region of bits.
-func (bm *BitMatrix) SetRegion(left, top, width, height int) {
+// SetRegion sets a rectangular region of bits. It returns an error when the
+// region is invalid or does not fit inside the matrix.
+func (bm *BitMatrix) SetRegion(left, top, width, height int) error {
 	if top < 0 || left < 0 {
-		panic("bitmatrix: left and top must be nonnegative")
+		return fmt.Errorf("bitmatrix: left and top must be nonnegative")
 	}
 	if height < 1 || width < 1 {
-		panic("bitmatrix: height and width must be at least 1")
+		return fmt.Errorf("bitmatrix: height and width must be at least 1")
 	}
 	right := left + width
 	bottom := top + height
 	if bottom > bm.height || right > bm.width {
-		panic("bitmatrix: region must fit inside the matrix")
+		return fmt.Errorf("bitmatrix: region must fit inside the matrix")
 	}
 	for y := top; y < bottom; y++ {
 		offset := y * bm.rowSize
@@ -175,6 +116,7 @@ func (bm *BitMatrix) SetRegion(left, top, width, height int) {
 			bm.data[offset+x/32] |= 1 << uint(x&0x1f)
 		}
 	}
+	return nil
 }
 
 // Row returns a row as a BitArray. If row is nil or too small, a new one is allocated.
@@ -191,16 +133,25 @@ func (bm *BitMatrix) Row(y int, row *BitArray) *BitArray {
 	return row
 }
 
-// SetRow sets the row at y from the given BitArray.
-func (bm *BitMatrix) SetRow(y int, row *BitArray) {
-	copy(bm.data[y*bm.rowSize:], row.BitData()[:bm.rowSize])
+// SetRow sets the row at y from the given BitArray. It returns an error when
+// y is out of range or the row is too small for the matrix.
+func (bm *BitMatrix) SetRow(y int, row *BitArray) error {
+	if y < 0 || y >= bm.height {
+		return fmt.Errorf("bitmatrix: row index %d out of range [0, %d)", y, bm.height)
+	}
+	if row == nil || len(row.BitData()) < bm.rowSize {
+		return fmt.Errorf("bitmatrix: row data too small for matrix row size %d", bm.rowSize)
+	}
+	copy(bm.data[y*bm.rowSize:y*bm.rowSize+bm.rowSize], row.BitData()[:bm.rowSize])
+	return nil
 }
 
-// Rotate rotates the matrix by the given degrees (0, 90, 180, 270).
-func (bm *BitMatrix) Rotate(degrees int) {
+// Rotate rotates the matrix by the given degrees (0, 90, 180, 270). It returns
+// an error when degrees is not a multiple of 90.
+func (bm *BitMatrix) Rotate(degrees int) error {
 	switch degrees % 360 {
 	case 0:
-		return
+		return nil
 	case 90:
 		bm.Rotate90()
 	case 180:
@@ -209,8 +160,9 @@ func (bm *BitMatrix) Rotate(degrees int) {
 		bm.Rotate90()
 		bm.Rotate180()
 	default:
-		panic("bitmatrix: degrees must be a multiple of 90")
+		return fmt.Errorf("bitmatrix: degrees must be a multiple of 90")
 	}
+	return nil
 }
 
 // Rotate180 rotates the matrix 180 degrees.
@@ -224,8 +176,8 @@ func (bm *BitMatrix) Rotate180() {
 		bottomRow = bm.Row(bottomRowIndex, bottomRow)
 		topRow.Reverse()
 		bottomRow.Reverse()
-		bm.SetRow(i, bottomRow)
-		bm.SetRow(bottomRowIndex, topRow)
+		_ = bm.SetRow(i, bottomRow)
+		_ = bm.SetRow(bottomRowIndex, topRow)
 	}
 }
 

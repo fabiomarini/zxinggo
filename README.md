@@ -1,6 +1,8 @@
+![zxinggo banner: the Go gopher scanning a QR code, surrounded by Data Matrix, Aztec and EAN-13 barcodes](zxinggo.png)
+
 # zxinggo
 
-A pure Go port of the [ZXing](https://github.com/zxing/zxing) ("Zebra Crossing") barcode reading and writing library.
+A pure Go barcode reading and writing library, ported from the [ZXing](https://github.com/zxing/zxing) ("Zebra Crossing") Java project and updated with detection improvements ported from [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp).
 
 ## Supported Formats
 
@@ -23,10 +25,14 @@ A pure Go port of the [ZXing](https://github.com/zxing/zxing) ("Zebra Crossing")
 | RSS Expanded | Yes | - |
 | MaxiCode | Yes | - |
 
+For a measured comparison against [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp)
+(decode rates, round-trips, performance, feature gaps), see
+[PARITY.md](PARITY.md).
+
 ## Installation
 
 ```
-go get github.com/ericlevine/zxinggo
+go get github.com/fabiomarini/zxinggo
 ```
 
 ## Usage
@@ -43,12 +49,12 @@ import (
 	_ "image/png"
 	"os"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/binarizer"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
 
 	// Register the formats you want to decode.
-	_ "github.com/ericlevine/zxinggo/qrcode"
-	_ "github.com/ericlevine/zxinggo/oned"
+	_ "github.com/fabiomarini/zxinggo/qrcode"
+	_ "github.com/fabiomarini/zxinggo/oned"
 )
 
 func main() {
@@ -79,9 +85,9 @@ import (
 	"image/png"
 	"os"
 
-	zxinggo "github.com/ericlevine/zxinggo"
+	zxinggo "github.com/fabiomarini/zxinggo"
 
-	_ "github.com/ericlevine/zxinggo/qrcode"
+	_ "github.com/fabiomarini/zxinggo/qrcode"
 )
 
 func main() {
@@ -125,7 +131,7 @@ result, err := zxinggo.Decode(bitmap, opts)
 The `barcodescan` command-line tool decodes barcodes from image files:
 
 ```
-go install github.com/ericlevine/zxinggo/cmd/barcodescan@latest
+go install github.com/fabiomarini/zxinggo/cmd/barcodescan@latest
 
 barcodescan photo.jpg
 # [QR_CODE] https://example.com
@@ -140,12 +146,12 @@ Format packages register themselves via `init()` using blank imports. Only impor
 
 ```go
 import (
-	_ "github.com/ericlevine/zxinggo/qrcode"     // QR Code
-	_ "github.com/ericlevine/zxinggo/datamatrix"  // Data Matrix
-	_ "github.com/ericlevine/zxinggo/aztec"       // Aztec
-	_ "github.com/ericlevine/zxinggo/pdf417"      // PDF417
-	_ "github.com/ericlevine/zxinggo/oned"        // All 1D formats
-	_ "github.com/ericlevine/zxinggo/maxicode"    // MaxiCode
+	_ "github.com/fabiomarini/zxinggo/qrcode"     // QR Code
+	_ "github.com/fabiomarini/zxinggo/datamatrix"  // Data Matrix
+	_ "github.com/fabiomarini/zxinggo/aztec"       // Aztec
+	_ "github.com/fabiomarini/zxinggo/pdf417"      // PDF417
+	_ "github.com/fabiomarini/zxinggo/oned"        // All 1D formats
+	_ "github.com/fabiomarini/zxinggo/maxicode"    // MaxiCode
 )
 ```
 
@@ -161,6 +167,7 @@ go test ./...
 
 - All 16 ZXing barcode formats implemented for reading; 13 support writing
 - TryHarder mode with 90-degree rotation for 1D barcodes
+- zxing-cpp detection rework: EAN/UPC/DataBar pattern-row scanning, Aztec concentric-ring detector, Data Matrix and QR robustness improvements (see [PARITY.md](PARITY.md))
 - PureBarcode mode for clean renders
 - AlsoInverted mode for scanning white-on-black barcodes
 - UPC/EAN extensions — 2-digit and 5-digit supplemental code decoding
@@ -247,8 +254,12 @@ Benchmarked on Apple M4, arm64, macOS. Go benchmarks use `testing.B` (3 runs, me
 | External dependencies | 1 (`golang.org/x/text`) |
 | Test images | 1,124 images across 50 test directories |
 
-## License
+## Credits & License
 
-Apache License 2.0 - same as the original [ZXing project](https://github.com/zxing/zxing).
+This project is a fork of [ericlevine/zxinggo](https://github.com/ericlevine/zxinggo) by Eric Levine, from which it inherits the original ZXing Java port.
 
-This project is a derivative work of ZXing, Copyright 2007 ZXing authors.
+It began as a pure Go port of [ZXing](https://github.com/zxing/zxing) ("Zebra Crossing"), Copyright 2007 ZXing authors, and additionally ports detection improvements from [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp), Copyright 2016 Nu-book Inc. and ZXing authors.
+
+Apache License 2.0 - the same license as the original ZXing and zxing-cpp projects.
+
+Copyright 2026 Eric Levine (original Go port); Copyright 2026 Fabio Marini (zxing-cpp detection rework and current maintenance).

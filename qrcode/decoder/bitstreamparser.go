@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/charset"
-	"github.com/ericlevine/zxinggo/internal"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/charset"
+	"github.com/fabiomarini/zxinggo/internal"
 )
 
-const alphanumericChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+const alphanumericChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
 
 const gb2312Subset = 1
 
@@ -274,10 +274,11 @@ func decodeNumericSegment(bs *bitutil.BitSource, result *strings.Builder, count 
 		if threeDigits >= 1000 {
 			return zxinggo.ErrFormat
 		}
-		result.WriteString(fmt.Sprintf("%03d", threeDigits))
+		_, _ = fmt.Fprintf(result, "%03d", threeDigits)
 		count -= 3
 	}
-	if count == 2 {
+	switch count {
+	case 2:
 		if bs.Available() < 7 {
 			return zxinggo.ErrFormat
 		}
@@ -285,8 +286,8 @@ func decodeNumericSegment(bs *bitutil.BitSource, result *strings.Builder, count 
 		if twoDigits >= 100 {
 			return zxinggo.ErrFormat
 		}
-		result.WriteString(fmt.Sprintf("%02d", twoDigits))
-	} else if count == 1 {
+		_, _ = fmt.Fprintf(result, "%02d", twoDigits)
+	case 1:
 		if bs.Available() < 4 {
 			return zxinggo.ErrFormat
 		}
@@ -294,7 +295,7 @@ func decodeNumericSegment(bs *bitutil.BitSource, result *strings.Builder, count 
 		if digit >= 10 {
 			return zxinggo.ErrFormat
 		}
-		result.WriteString(fmt.Sprintf("%d", digit))
+		_, _ = fmt.Fprintf(result, "%d", digit)
 	}
 	return nil
 }

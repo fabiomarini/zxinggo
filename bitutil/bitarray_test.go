@@ -52,7 +52,9 @@ func TestBitArrayGetNextSet(t *testing.T) {
 
 func TestBitArrayGetNextUnset(t *testing.T) {
 	ba := NewBitArray(8)
-	ba.SetRange(0, 8)
+	if err := ba.SetRange(0, 8); err != nil {
+		t.Fatal(err)
+	}
 	ba.Flip(3) // unset bit 3
 	if got := ba.GetNextUnset(0); got != 3 {
 		t.Errorf("GetNextUnset(0) = %d, want 3", got)
@@ -127,14 +129,16 @@ func TestBitArrayClone(t *testing.T) {
 
 func TestBitArrayIsRange(t *testing.T) {
 	ba := NewBitArray(16)
-	ba.SetRange(4, 12)
-	if !ba.IsRange(4, 12, true) {
+	if err := ba.SetRange(4, 12); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := ba.IsRange(4, 12, true); err != nil || !ok {
 		t.Error("range [4,12) should be all set")
 	}
-	if !ba.IsRange(0, 4, false) {
+	if ok, err := ba.IsRange(0, 4, false); err != nil || !ok {
 		t.Error("range [0,4) should be all unset")
 	}
-	if ba.IsRange(0, 8, true) {
+	if ok, err := ba.IsRange(0, 8, true); err == nil && ok {
 		t.Error("range [0,8) should not be all set")
 	}
 }

@@ -2,8 +2,8 @@
 package detector
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // PDF417DetectorResult encapsulates the results of detecting one or more

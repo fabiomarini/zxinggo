@@ -3,8 +3,8 @@ package oned
 import (
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 const code39Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%"
@@ -144,7 +144,7 @@ func findCode39AsteriskPattern(row *bitutil.BitArray, counters []int) ([2]int, e
 					if whiteStart < 0 {
 						whiteStart = 0
 					}
-					if row.IsRange(whiteStart, patternStart, false) {
+					if ok, err := row.IsRange(whiteStart, patternStart, false); err == nil && ok {
 						return [2]int{patternStart, i}, nil
 					}
 				}

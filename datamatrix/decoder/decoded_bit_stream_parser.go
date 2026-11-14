@@ -3,14 +3,14 @@ package decoder
 import (
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
+	zxinggo "github.com/fabiomarini/zxinggo"
 )
 
 // DecoderResult holds the decoded text and raw bytes from a Data Matrix barcode.
 type DecoderResult struct {
-	Text            string
-	RawBytes        []byte
-	ErrorsCorrected int
+	Text              string
+	RawBytes          []byte
+	ErrorsCorrected   int
 	SymbologyModifier int
 }
 

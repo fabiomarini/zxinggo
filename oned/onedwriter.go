@@ -3,7 +3,7 @@ package oned
 import (
 	"fmt"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // OneDEncoder encodes contents into a boolean pattern for a 1D barcode.

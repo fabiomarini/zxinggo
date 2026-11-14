@@ -8,10 +8,10 @@ var ErrFormatECI = errors.New("charset: invalid ECI value")
 
 // ECI represents a Character Set Extended Channel Interpretation.
 type ECI struct {
-	Value    int
-	Name     string
-	GoName   string // Go encoding name
-	Aliases  []string
+	Value   int
+	Name    string
+	GoName  string // Go encoding name
+	Aliases []string
 }
 
 // pre-defined ECIs

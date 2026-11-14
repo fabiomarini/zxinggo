@@ -17,13 +17,13 @@ type ECBlocks struct {
 
 // Version describes a Data Matrix ECC-200 symbol size and its EC block layout.
 type Version struct {
-	versionNumber        int
-	symbolSizeRows       int
-	symbolSizeColumns    int
-	dataRegionSizeRows   int
+	versionNumber         int
+	symbolSizeRows        int
+	symbolSizeColumns     int
+	dataRegionSizeRows    int
 	dataRegionSizeColumns int
-	ecBlocks             ECBlocks
-	totalCodewords       int
+	ecBlocks              ECBlocks
+	totalCodewords        int
 }
 
 // VersionNumber returns the version number (1-based index).
@@ -81,7 +81,8 @@ func GetVersionForDimensions(numRows, numColumns int) (*Version, error) {
 // Data from ISO/IEC 16022 Table 7 and ISO 21471:2020 (DMRE) 5.5.1 Table 7.
 //
 // Fields per entry: versionNumber, symbolSizeRows, symbolSizeColumns,
-//   dataRegionSizeRows, dataRegionSizeColumns, totalECCodewords, ECB{count, dataCodewords}...
+//
+//	dataRegionSizeRows, dataRegionSizeColumns, totalECCodewords, ECB{count, dataCodewords}...
 var versions = [48]Version{
 	// Square symbols
 	newVersion(1, 10, 10, 8, 8, 5, ECB{1, 3}),

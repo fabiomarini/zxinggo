@@ -4,16 +4,16 @@ package decoder
 type Mode int
 
 const (
-	ModeTerminator        Mode = 0x00
-	ModeNumeric           Mode = 0x01
-	ModeAlphanumeric      Mode = 0x02
-	ModeStructuredAppend  Mode = 0x03
-	ModeByte              Mode = 0x04
-	ModeFNC1FirstPosition Mode = 0x05
-	ModeECI               Mode = 0x07
-	ModeKanji             Mode = 0x08
+	ModeTerminator         Mode = 0x00
+	ModeNumeric            Mode = 0x01
+	ModeAlphanumeric       Mode = 0x02
+	ModeStructuredAppend   Mode = 0x03
+	ModeByte               Mode = 0x04
+	ModeFNC1FirstPosition  Mode = 0x05
+	ModeECI                Mode = 0x07
+	ModeKanji              Mode = 0x08
 	ModeFNC1SecondPosition Mode = 0x09
-	ModeHanzi             Mode = 0x0D
+	ModeHanzi              Mode = 0x0D
 )
 
 // characterCountBitsForVersions contains [v1-9, v10-26, v27-40] bit counts.

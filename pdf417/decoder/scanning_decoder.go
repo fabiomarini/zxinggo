@@ -4,9 +4,9 @@ import (
 	"math"
 	"strconv"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/internal"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/internal"
 )
 
 const (

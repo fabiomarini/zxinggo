@@ -3,8 +3,8 @@ package oned
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 const upceCodeWidth = 3 + (7 * 6) + 6 // = 51
@@ -57,7 +57,7 @@ func (w *UPCEWriter) EncodeContents(contents string) ([]bool, error) {
 	}
 
 	checkDigit := int(contents[7] - '0')
-	parities := upceNumSysAndCheckDigitPatterns[firstDigit][checkDigit]
+	parities := upceNumSysAndCheckDigitPatterns[firstDigit*10+checkDigit]
 
 	result := make([]bool, upceCodeWidth)
 	pos := AppendPattern(result, 0, UPCEANStartEndPattern, true)

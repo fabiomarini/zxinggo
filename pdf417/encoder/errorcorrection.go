@@ -145,10 +145,14 @@ func GenerateErrorCorrection(dataCodewords string, level int) (string, error) {
 		return "", err
 	}
 
+	// The codewords are stored as runes (values 0..928) in the string; they
+	// MUST be iterated as runes. len() and byte indexing would count UTF-8
+	// fragments for codewords >= 128 and produce a corrupt EC stream.
+	dcw := []rune(dataCodewords)
 	e := make([]int, k)
-	sld := len(dataCodewords)
-	for i := 0; i < sld; i++ {
-		t1 := (int(dataCodewords[i]) + e[k-1]) % 929
+	sld := len(dcw)
+	for i := range sld {
+		t1 := (int(dcw[i]) + e[k-1]) % 929
 		for j := k - 1; j >= 1; j-- {
 			t2 := (t1 * ecCoefficients[level][j]) % 929
 			t3 := 929 - t2

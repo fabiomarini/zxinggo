@@ -3,8 +3,8 @@ package oned
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // UPCAWriter encodes UPC-A barcodes by delegating to EAN-13.

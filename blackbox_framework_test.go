@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/binarizer"
-	"github.com/ericlevine/zxinggo/pdf417"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
+	"github.com/fabiomarini/zxinggo/pdf417"
 )
 
 // blackboxTestDir is the path to the blackbox test resources (copied from Java ZXing).
@@ -121,7 +121,7 @@ func loadExpectedMetadata(basePath string) map[string]string {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	metadata := make(map[string]string)
 	scanner := bufio.NewScanner(f)
@@ -281,7 +281,7 @@ func runBlackBoxTest(t *testing.T, tc blackboxTestCase) {
 			t.Fatalf("failed to open %s: %v", td.path, err)
 		}
 		img, _, err := image.Decode(f)
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			t.Logf("failed to decode image %s: %v", filepath.Base(td.path), err)
 			continue
@@ -448,8 +448,8 @@ func tryDecode(bitmap *zxinggo.BinaryBitmap, format zxinggo.Format, tryHarder bo
 // Helper to create test rotation with just pass counts (maxMisreads=0)
 func rot(degrees float64, mustPass, tryHarderPass int) blackboxTestRotation {
 	return blackboxTestRotation{
-		rotation:      degrees,
-		mustPassCount: mustPass,
+		rotation:       degrees,
+		mustPassCount:  mustPass,
 		tryHarderCount: tryHarderPass,
 	}
 }
@@ -549,7 +549,7 @@ func runPDF417MultiTest(t *testing.T, dir string, mustPass int) {
 				continue
 			}
 			img, _, err := image.Decode(f)
-			f.Close()
+			_ = f.Close()
 			if err != nil {
 				t.Logf("failed to decode image %s: %v", imgPath, err)
 				continue
@@ -607,7 +607,7 @@ func pdf417SegmentIndex(r *zxinggo.Result) int {
 	}
 	// Use reflect to access SegmentIndex field on the concrete type
 	v := reflect.ValueOf(meta)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() == reflect.Struct {
@@ -618,4 +618,3 @@ func pdf417SegmentIndex(r *zxinggo.Result) int {
 	}
 	return 0
 }
-

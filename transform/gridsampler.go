@@ -3,7 +3,7 @@ package transform
 import (
 	"errors"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // ErrNotFound is returned when sampling fails.
@@ -86,17 +86,19 @@ func CheckAndNudgePoints(image *bitutil.BitMatrix, points []float64) error {
 			return ErrNotFound
 		}
 		nudged = false
-		if x == -1 {
+		switch x {
+		case -1:
 			points[offset] = 0
 			nudged = true
-		} else if x == width {
+		case width:
 			points[offset] = float64(width - 1)
 			nudged = true
 		}
-		if y == -1 {
+		switch y {
+		case -1:
 			points[offset+1] = 0
 			nudged = true
-		} else if y == height {
+		case height:
 			points[offset+1] = float64(height - 1)
 			nudged = true
 		}
@@ -111,17 +113,19 @@ func CheckAndNudgePoints(image *bitutil.BitMatrix, points []float64) error {
 			return ErrNotFound
 		}
 		nudged = false
-		if x == -1 {
+		switch x {
+		case -1:
 			points[offset] = 0
 			nudged = true
-		} else if x == width {
+		case width:
 			points[offset] = float64(width - 1)
 			nudged = true
 		}
-		if y == -1 {
+		switch y {
+		case -1:
 			points[offset+1] = 0
 			nudged = true
-		} else if y == height {
+		case height:
 			points[offset+1] = float64(height - 1)
 			nudged = true
 		}

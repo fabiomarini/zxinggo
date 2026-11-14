@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/charset"
-	"github.com/ericlevine/zxinggo/internal"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/charset"
+	"github.com/fabiomarini/zxinggo/internal"
 )
 
 // eciResult mimics Java's ECIStringBuilder: it accumulates raw byte values
@@ -27,8 +27,8 @@ func newECIResult(capacity int) *eciResult {
 	return r
 }
 
-// WriteByte appends a single byte value (like Java's append(char) or append(byte)).
-func (e *eciResult) WriteByte(b byte) {
+// appendByte appends a single byte value (like Java's append(char) or append(byte)).
+func (e *eciResult) appendByte(b byte) {
 	e.currentBytes = append(e.currentBytes, b)
 }
 
@@ -99,7 +99,7 @@ func (e *eciResult) String() string {
 type textMode int
 
 const (
-	textModeAlpha      textMode = iota
+	textModeAlpha textMode = iota
 	textModeLower
 	textModeMixed
 	textModePunct
@@ -109,18 +109,18 @@ const (
 
 // Mode latch and shift constants
 const (
-	textCompactionModeLatch          = 900
-	byteCompactionModeLatch          = 901
-	numericCompactionModeLatch       = 902
-	byteCompactionModeLatch6         = 924
-	eciUserDefined                   = 925
-	eciGeneralPurpose                = 926
-	eciCharset                       = 927
-	beginMacroPDF417ControlBlock     = 928
-	beginMacroPDF417OptionalField    = 923
-	macroPDF417Terminator            = 922
-	modeShiftToByteCompactionMode    = 913
-	maxNumericCodewords              = 15
+	textCompactionModeLatch       = 900
+	byteCompactionModeLatch       = 901
+	numericCompactionModeLatch    = 902
+	byteCompactionModeLatch6      = 924
+	eciUserDefined                = 925
+	eciGeneralPurpose             = 926
+	eciCharset                    = 927
+	beginMacroPDF417ControlBlock  = 928
+	beginMacroPDF417OptionalField = 923
+	macroPDF417Terminator         = 922
+	modeShiftToByteCompactionMode = 913
+	maxNumericCodewords           = 15
 
 	macroPDF417OptionalFieldFileName     = 0
 	macroPDF417OptionalFieldSegmentCount = 1
@@ -194,7 +194,7 @@ func decodeBitStream(codewords []int, ecLevel string) (*internal.DecoderResult, 
 				return nil, err
 			}
 		case modeShiftToByteCompactionMode:
-			result.WriteByte(byte(codewords[codeIndex]))
+			result.appendByte(byte(codewords[codeIndex]))
 			codeIndex++
 		case numericCompactionModeLatch:
 			codeIndex, err = numericCompaction(codewords, codeIndex, result)
@@ -267,7 +267,7 @@ func decodeMacroBlock(codewords []int, codeIndex int, resultMetadata *PDF417Resu
 		codeIndex < len(codewords) &&
 		codewords[codeIndex] != macroPDF417Terminator &&
 		codewords[codeIndex] != beginMacroPDF417OptionalField {
-		fileID.WriteString(fmt.Sprintf("%03d", codewords[codeIndex]))
+		_, _ = fmt.Fprintf(&fileID, "%03d", codewords[codeIndex])
 		codeIndex++
 	}
 	if fileID.Len() == 0 {
@@ -471,7 +471,7 @@ func decodeTextCompaction(textCompactionData, byteCompactionData []int, length i
 					priorToShiftMode = subMode
 					subMode = textModePunctShift
 				case modeShiftToByteCompactionMode:
-					result.WriteByte(byte(byteCompactionData[i]))
+					result.appendByte(byte(byteCompactionData[i]))
 				case textCompactionModeLatch:
 					subMode = textModeAlpha
 					latchedMode = subMode
@@ -495,7 +495,7 @@ func decodeTextCompaction(textCompactionData, byteCompactionData []int, length i
 					priorToShiftMode = subMode
 					subMode = textModePunctShift
 				case modeShiftToByteCompactionMode:
-					result.WriteByte(byte(byteCompactionData[i]))
+					result.appendByte(byte(byteCompactionData[i]))
 				case textCompactionModeLatch:
 					subMode = textModeAlpha
 					latchedMode = subMode
@@ -522,7 +522,7 @@ func decodeTextCompaction(textCompactionData, byteCompactionData []int, length i
 					priorToShiftMode = subMode
 					subMode = textModePunctShift
 				case modeShiftToByteCompactionMode:
-					result.WriteByte(byte(byteCompactionData[i]))
+					result.appendByte(byte(byteCompactionData[i]))
 				}
 			}
 
@@ -535,7 +535,7 @@ func decodeTextCompaction(textCompactionData, byteCompactionData []int, length i
 					subMode = textModeAlpha
 					latchedMode = subMode
 				case modeShiftToByteCompactionMode:
-					result.WriteByte(byte(byteCompactionData[i]))
+					result.appendByte(byte(byteCompactionData[i]))
 				}
 			}
 
@@ -561,16 +561,15 @@ func decodeTextCompaction(textCompactionData, byteCompactionData []int, length i
 				case tcPAL, textCompactionModeLatch:
 					subMode = textModeAlpha
 				case modeShiftToByteCompactionMode:
-					result.WriteByte(byte(byteCompactionData[i]))
+					result.appendByte(byte(byteCompactionData[i]))
 				}
 			}
 		}
 		if ch != 0 {
-			result.WriteByte(ch)
+			result.appendByte(ch)
 		}
 		i++
 	}
-	_ = latchedMode // latchedMode tracks the latched state for return
 	return latchedMode
 }
 
@@ -604,7 +603,7 @@ func byteCompaction(mode int, codewords []int, codeIndex int, result *eciResult)
 			if count == 5 && (mode == byteCompactionModeLatch6 ||
 				(codeIndex < codewords[0] && codewords[codeIndex] < textCompactionModeLatch)) {
 				for i := 0; i < 6; i++ {
-					result.WriteByte(byte(value >> uint(8*(5-i))))
+					result.appendByte(byte(value >> uint(8*(5-i))))
 				}
 			} else {
 				codeIndex -= count
@@ -612,7 +611,7 @@ func byteCompaction(mode int, codewords []int, codeIndex int, result *eciResult)
 					code := codewords[codeIndex]
 					codeIndex++
 					if code < textCompactionModeLatch {
-						result.WriteByte(byte(code))
+						result.appendByte(byte(code))
 					} else if code == eciCharset {
 						if err := result.appendECI(codewords[codeIndex]); err != nil {
 							return 0, err

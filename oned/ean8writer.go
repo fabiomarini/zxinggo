@@ -3,8 +3,8 @@ package oned
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 const ean8CodeWidth = 3 + (7 * 4) + 5 + (7 * 4) + 3 // = 67

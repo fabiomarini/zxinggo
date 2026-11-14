@@ -71,12 +71,12 @@ func (si *SymbolInfo) TotalCodewords() int {
 // MappingMatrixRows returns the number of rows in the mapping matrix
 // (symbol rows minus finder pattern rows: each data region has 2 extra rows).
 func (si *SymbolInfo) MappingMatrixRows() int {
-	return si.MatrixHeight - (si.MatrixHeight / (si.DataRegionSizeRows + 2)) * 2
+	return si.MatrixHeight - (si.MatrixHeight/(si.DataRegionSizeRows+2))*2
 }
 
 // MappingMatrixColumns returns the number of columns in the mapping matrix.
 func (si *SymbolInfo) MappingMatrixColumns() int {
-	return si.MatrixWidth - (si.MatrixWidth / (si.DataRegionSizeColumns + 2)) * 2
+	return si.MatrixWidth - (si.MatrixWidth/(si.DataRegionSizeColumns+2))*2
 }
 
 // symbols is the full list of ECC-200 symbol sizes ordered by data capacity.

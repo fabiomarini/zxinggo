@@ -1,6 +1,6 @@
 package aztec
 
-import zxinggo "github.com/ericlevine/zxinggo"
+import zxinggo "github.com/fabiomarini/zxinggo"
 
 func init() {
 	zxinggo.RegisterReader(zxinggo.FormatAztec, func(opts *zxinggo.DecodeOptions) zxinggo.Reader {

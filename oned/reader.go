@@ -1,15 +1,16 @@
 package oned
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/internal/pattern"
 )
 
 // MultiFormatOneDReader attempts to decode 1D barcodes by trying multiple
 // format-specific readers in sequence.
 type MultiFormatOneDReader struct {
-	readers          []RowDecoder
-	possibleFormats  map[zxinggo.Format]bool
+	readers         []RowDecoder
+	possibleFormats map[zxinggo.Format]bool
 }
 
 // NewMultiFormatOneDReader creates a new multi-format reader configured by opts.
@@ -22,18 +23,11 @@ func NewMultiFormatOneDReader(opts *zxinggo.DecodeOptions) *MultiFormatOneDReade
 		for _, f := range opts.PossibleFormats {
 			possibleFormats[f] = true
 		}
-		// UPC/EAN readers: match Java's MultiFormatUPCEANReader else-if logic.
-		// EAN-13 covers UPC-A, so only add UPCAReader if EAN-13 is not requested.
-		if possibleFormats[zxinggo.FormatEAN13] {
-			readers = append(readers, NewEAN13Reader())
-		} else if possibleFormats[zxinggo.FormatUPCA] {
-			readers = append(readers, NewUPCAReader())
-		}
-		if possibleFormats[zxinggo.FormatEAN8] {
-			readers = append(readers, NewEAN8Reader())
-		}
-		if possibleFormats[zxinggo.FormatUPCE] {
-			readers = append(readers, NewUPCEReader())
+		// Single pattern-row reader for all UPC/EAN formats (zxing-cpp
+		// MultiUPCEANReader); it also handles the UPC-A conversion.
+		if possibleFormats[zxinggo.FormatEAN13] || possibleFormats[zxinggo.FormatUPCA] ||
+			possibleFormats[zxinggo.FormatEAN8] || possibleFormats[zxinggo.FormatUPCE] {
+			readers = append(readers, NewMultiUPCEANReader(possibleFormats))
 		}
 		if possibleFormats[zxinggo.FormatCode39] {
 			useCheckDigit := opts.AssumeCode39CheckDigit
@@ -60,11 +54,8 @@ func NewMultiFormatOneDReader(opts *zxinggo.DecodeOptions) *MultiFormatOneDReade
 	}
 
 	if len(readers) == 0 {
-		// Default: EAN-13 covers UPC-A, so no separate UPCAReader needed.
 		readers = []RowDecoder{
-			NewEAN13Reader(),
-			NewEAN8Reader(),
-			NewUPCEReader(),
+			NewMultiUPCEANReader(nil),
 			NewCode39ReaderWithCheckDigit(false, true),
 			NewCode93Reader(),
 			NewCode128Reader(),
@@ -107,48 +98,42 @@ func (r *MultiFormatOneDReader) maybeConvertEAN13ToUPCA(result *zxinggo.Result) 
 	return result
 }
 
-// Decode decodes a 1D barcode from the given image.
-// Like Java's OneDReader.decode(), if TryHarder is set and the initial scan
-// fails, it tries again with the image rotated 90 degrees counterclockwise.
+// Decode decodes a 1D barcode from the given image. Row/column scanning
+// and orientation handling live in DecodeOneD (zxing-cpp ODReader).
 func (r *MultiFormatOneDReader) Decode(image *zxinggo.BinaryBitmap, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
-	result, err := DecodeOneD(image, r, opts)
-	if err == nil {
-		return result, nil
-	}
-	tryHarder := opts != nil && opts.TryHarder
-	if !tryHarder {
-		return nil, err
-	}
-	// Try with rotated image (90 degrees CCW)
-	rotated := image.RotateCounterClockwise()
-	if rotated == nil {
-		return nil, err
-	}
-	result, err2 := DecodeOneD(rotated, r, opts)
-	if err2 != nil {
-		return nil, err
-	}
-	// Record that we found it rotated 90 degrees CCW / 270 degrees CW
-	orientation := 270
-	if existing, ok := result.Metadata[zxinggo.MetadataOrientation]; ok {
-		if existingInt, ok := existing.(int); ok {
-			orientation = (orientation + existingInt) % 360
-		}
-	}
-	result.PutMetadata(zxinggo.MetadataOrientation, orientation)
-	// Adjust result points: for a CCW rotation, (x,y) in rotated image
-	// maps to (rotatedHeight - 1 - y, x) in the original image
-	if result.Points != nil {
-		rotatedHeight := rotated.Height()
-		for i, p := range result.Points {
-			result.Points[i] = zxinggo.ResultPoint{
-				X: float64(rotatedHeight) - p.Y - 1,
-				Y: p.X,
-			}
-		}
-	}
-	return result, nil
+	return DecodeOneD(image, r, opts)
 }
 
-// Reset is a no-op for 1D readers.
-func (r *MultiFormatOneDReader) Reset() {}
+// DecodePattern tries each sub-reader on a pattern-row view (zxing-cpp
+// RowReader interface). Sub-readers that still consume bit rows get an
+// adapted BitArray, built lazily.
+func (r *MultiFormatOneDReader) DecodePattern(rowNumber int, view pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
+	var row *bitutil.BitArray
+	for _, reader := range r.readers {
+		if prd, ok := reader.(PatternRowDecoder); ok {
+			res, err := prd.DecodePattern(rowNumber, view, opts)
+			if err == nil && res != nil {
+				return r.maybeConvertEAN13ToUPCA(res), nil
+			}
+			continue
+		}
+		if row == nil {
+			row = countersToBitArray(view.Row(), row)
+		}
+		res, err := reader.DecodeRow(rowNumber, row, opts)
+		if err == nil && res != nil {
+			return r.maybeConvertEAN13ToUPCA(res), nil
+		}
+	}
+	return nil, zxinggo.ErrNotFound
+}
+
+// Reset resets sub-readers that keep cross-row state (RSS readers),
+// matching zxing-cpp's reset between scan passes.
+func (r *MultiFormatOneDReader) Reset() {
+	for _, reader := range r.readers {
+		if rst, ok := reader.(interface{ Reset() }); ok {
+			rst.Reset()
+		}
+	}
+}

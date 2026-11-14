@@ -19,7 +19,7 @@ const (
 
 	preferredRatio     = 3.0
 	defaultModuleWidth = 0.357 // 1px in mm
-	moduleHeight       = 2.0  // mm
+	moduleHeight       = 2.0   // mm
 )
 
 // codewordTable is the codeword table from the Annex A of ISO/IEC 15438:2001(E).

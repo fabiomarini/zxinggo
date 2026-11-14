@@ -1,6 +1,6 @@
 package zxinggo
 
-import "github.com/ericlevine/zxinggo/bitutil"
+import "github.com/fabiomarini/zxinggo/bitutil"
 
 // EncodeOptions configures barcode encoding behavior.
 type EncodeOptions struct {

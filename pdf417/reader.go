@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/pdf417/decoder"
-	"github.com/ericlevine/zxinggo/pdf417/detector"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/pdf417/decoder"
+	"github.com/fabiomarini/zxinggo/pdf417/detector"
 )
 
 // PDF417Reader decodes PDF417 barcodes from binary images.

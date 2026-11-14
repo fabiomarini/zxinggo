@@ -8,16 +8,6 @@ package encoder
 
 import "errors"
 
-// Encoding mode constants for the high-level encoder.
-const (
-	modeASCII   = 0
-	modeC40     = 1
-	modeText    = 2
-	modeX12     = 3
-	modeEDIFACT = 4
-	modeBase256 = 5
-)
-
 // Special codeword values in ASCII mode.
 const (
 	asciiUpperShift = 235 // shifts to upper 128 characters
@@ -93,10 +83,11 @@ func encodeASCII(data []byte) []byte {
 // C40 mode encodes 3 characters into 2 codewords, efficient for uppercase text.
 //
 // C40 character set:
-//   Set 0 (basic): Space=3, '0'-'9'=4-13, 'A'-'Z'=14-39
-//   Set 1 (shift 0): ASCII 0-31
-//   Set 2 (shift 1): Special characters
-//   Set 3 (shift 2): Lowercase 'a'-'z' = 0-25, plus high ASCII
+//
+//	Set 0 (basic): Space=3, '0'-'9'=4-13, 'A'-'Z'=14-39
+//	Set 1 (shift 0): ASCII 0-31
+//	Set 2 (shift 1): Special characters
+//	Set 3 (shift 2): Lowercase 'a'-'z' = 0-25, plus high ASCII
 func encodeWithC40(data []byte) []byte {
 	result := make([]byte, 0, len(data))
 	i := 0

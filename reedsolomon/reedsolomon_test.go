@@ -16,7 +16,9 @@ func TestEncodeDecodeQR(t *testing.T) {
 
 	// Encode
 	enc := NewEncoder(field)
-	enc.Encode(toEncode, ecSize)
+	if err := enc.Encode(toEncode, ecSize); err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify data is still intact
 	for i := 0; i < dataSize; i++ {
@@ -28,9 +30,9 @@ func TestEncodeDecodeQR(t *testing.T) {
 	// Introduce errors
 	received := make([]int, len(toEncode))
 	copy(received, toEncode)
-	received[0] = 0    // corrupt first byte
-	received[3] = 200  // corrupt another byte
-	received[6] = 100  // corrupt another byte
+	received[0] = 0   // corrupt first byte
+	received[3] = 200 // corrupt another byte
+	received[6] = 100 // corrupt another byte
 
 	// Decode (should correct up to ecSize/2 = 3 errors)
 	dec := NewDecoder(field)
@@ -60,7 +62,9 @@ func TestDecodeNoErrors(t *testing.T) {
 	}
 
 	enc := NewEncoder(field)
-	enc.Encode(toEncode, ecSize)
+	if err := enc.Encode(toEncode, ecSize); err != nil {
+		t.Fatal(err)
+	}
 
 	dec := NewDecoder(field)
 	corrected, err := dec.Decode(toEncode, ecSize)
@@ -82,7 +86,9 @@ func TestDecodeTooManyErrors(t *testing.T) {
 	}
 
 	enc := NewEncoder(field)
-	enc.Encode(toEncode, ecSize)
+	if err := enc.Encode(toEncode, ecSize); err != nil {
+		t.Fatal(err)
+	}
 
 	// Introduce more errors than can be corrected
 	received := make([]int, len(toEncode))
@@ -109,7 +115,10 @@ func TestGaloisFieldBasics(t *testing.T) {
 
 	// a * inverse(a) should be 1
 	for a := 1; a < 256; a++ {
-		inv := field.Inverse(a)
+		inv, err := field.Inverse(a)
+		if err != nil {
+			t.Fatalf("Inverse(%d): %v", a, err)
+		}
 		product := field.Multiply(a, inv)
 		if product != 1 {
 			t.Errorf("a=%d: a*inv(a) = %d, want 1", a, product)

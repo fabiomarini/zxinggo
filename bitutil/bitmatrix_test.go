@@ -36,7 +36,9 @@ func TestBitMatrixUnset(t *testing.T) {
 
 func TestBitMatrixSetRegion(t *testing.T) {
 	bm := NewBitMatrixWithSize(8, 8)
-	bm.SetRegion(2, 2, 4, 4)
+	if err := bm.SetRegion(2, 2, 4, 4); err != nil {
+		t.Fatal(err)
+	}
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
 			expected := x >= 2 && x < 6 && y >= 2 && y < 6

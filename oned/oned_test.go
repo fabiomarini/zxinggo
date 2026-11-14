@@ -3,8 +3,8 @@ package oned
 import (
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // roundTrip1D encodes a barcode, then decodes the resulting BitMatrix row by row.
@@ -113,7 +113,7 @@ func TestEAN13RoundTrip(t *testing.T) {
 		"0012345678905",
 	}
 	writer := NewEAN13Writer()
-	reader := NewEAN13Reader()
+	reader := NewMultiUPCEANReader(map[zxinggo.Format]bool{zxinggo.FormatEAN13: true})
 	for _, tc := range tests {
 		t.Run(tc, func(t *testing.T) {
 			roundTrip1D(t, tc, zxinggo.FormatEAN13, writer.EncodeContents, reader)
@@ -124,7 +124,7 @@ func TestEAN13RoundTrip(t *testing.T) {
 func TestEAN13RoundTripWithoutCheckDigit(t *testing.T) {
 	// Input 12 digits, writer computes check digit
 	writer := NewEAN13Writer()
-	reader := NewEAN13Reader()
+	reader := NewMultiUPCEANReader(map[zxinggo.Format]bool{zxinggo.FormatEAN13: true})
 
 	code, err := writer.EncodeContents("590123412345")
 	if err != nil {
@@ -159,7 +159,7 @@ func TestEAN8RoundTrip(t *testing.T) {
 		"12345670",
 	}
 	writer := NewEAN8Writer()
-	reader := NewEAN8Reader()
+	reader := NewMultiUPCEANReader(map[zxinggo.Format]bool{zxinggo.FormatEAN8: true})
 	for _, tc := range tests {
 		t.Run(tc, func(t *testing.T) {
 			roundTrip1D(t, tc, zxinggo.FormatEAN8, writer.EncodeContents, reader)
@@ -173,7 +173,7 @@ func TestUPCARoundTrip(t *testing.T) {
 	tests := []string{
 		"012345678905",
 	}
-	reader := NewUPCAReader()
+	reader := NewMultiUPCEANReader(map[zxinggo.Format]bool{zxinggo.FormatUPCA: true})
 	for _, tc := range tests {
 		t.Run(tc, func(t *testing.T) {
 			// UPC-A writer prepends 0 and uses EAN-13, so we encode via the writer
@@ -216,7 +216,7 @@ func TestUPCERoundTrip(t *testing.T) {
 		"01234565",
 	}
 	writer := NewUPCEWriter()
-	reader := NewUPCEReader()
+	reader := NewMultiUPCEANReader(map[zxinggo.Format]bool{zxinggo.FormatUPCE: true})
 	for _, tc := range tests {
 		t.Run(tc, func(t *testing.T) {
 			roundTrip1D(t, tc, zxinggo.FormatUPCE, writer.EncodeContents, reader)

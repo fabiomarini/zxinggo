@@ -1,6 +1,6 @@
 package pdf417
 
-import zxinggo "github.com/ericlevine/zxinggo"
+import zxinggo "github.com/fabiomarini/zxinggo"
 
 func init() {
 	zxinggo.RegisterReader(zxinggo.FormatPDF417, func(opts *zxinggo.DecodeOptions) zxinggo.Reader {

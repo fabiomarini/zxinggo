@@ -140,17 +140,22 @@ func (p *GenericGFPoly) MultiplyByMonomial(degree, coefficient int) *GenericGFPo
 	return newGenericGFPoly(p.field, product)
 }
 
-// Divide divides by another polynomial, returning [quotient, remainder].
-func (p *GenericGFPoly) Divide(other *GenericGFPoly) [2]*GenericGFPoly {
+// Divide divides by another polynomial, returning [quotient, remainder]. It
+// returns an error when other is zero or its leading coefficient is not
+// invertible.
+func (p *GenericGFPoly) Divide(other *GenericGFPoly) ([2]*GenericGFPoly, error) {
 	if other.IsZero() {
-		panic("reedsolomon: divide by zero")
+		return [2]*GenericGFPoly{}, ErrReedSolomon
 	}
 
 	quotient := p.field.Zero()
 	remainder := p
 
 	denominatorLeadingTerm := other.GetCoefficient(other.Degree())
-	inverseDLT := p.field.Inverse(denominatorLeadingTerm)
+	inverseDLT, err := p.field.Inverse(denominatorLeadingTerm)
+	if err != nil {
+		return [2]*GenericGFPoly{}, err
+	}
 
 	for remainder.Degree() >= other.Degree() && !remainder.IsZero() {
 		degreeDiff := remainder.Degree() - other.Degree()
@@ -161,5 +166,5 @@ func (p *GenericGFPoly) Divide(other *GenericGFPoly) [2]*GenericGFPoly {
 		remainder = remainder.AddOrSubtractPoly(term)
 	}
 
-	return [2]*GenericGFPoly{quotient, remainder}
+	return [2]*GenericGFPoly{quotient, remainder}, nil
 }

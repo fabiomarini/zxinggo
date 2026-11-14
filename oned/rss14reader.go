@@ -3,8 +3,8 @@ package oned
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // RSS14Reader decodes RSS-14 barcodes, including truncated and stacked variants.
@@ -23,6 +23,13 @@ type RSS14Reader struct {
 
 func NewRSS14Reader() *RSS14Reader {
 	return &RSS14Reader{}
+}
+
+// Reset clears the accumulated pairs between scan passes (zxing-cpp
+// DataBarReader::reset).
+func (r *RSS14Reader) Reset() {
+	r.possibleLeftPairs = r.possibleLeftPairs[:0]
+	r.possibleRightPairs = r.possibleRightPairs[:0]
 }
 
 var rss14OutsideEvenTotalSubset = []int{1, 10, 34, 70, 126}

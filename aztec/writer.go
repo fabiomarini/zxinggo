@@ -3,9 +3,9 @@ package aztec
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/aztec/encoder"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/aztec/encoder"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Writer encodes Aztec barcodes.

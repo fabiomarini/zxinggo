@@ -1,16 +1,7 @@
 package oned
 
-import (
-	"strings"
-
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-)
-
-const (
-	upceanMaxAvgVariance        = 0.48
-	upceanMaxIndividualVariance = 0.7
-)
+// UPC/EAN shared tables and checksum, used by the pattern-row reader
+// (multilupceanreader.go) and the UPC/EAN writers.
 
 // UPC/EAN guard patterns.
 var (
@@ -51,103 +42,18 @@ func init() {
 	}
 }
 
-// UPCEANMiddleDecoder decodes the middle portion of a UPC/EAN barcode.
-type UPCEANMiddleDecoder interface {
-	// DecodeMiddle decodes the middle portion of the barcode.
-	// Returns the row offset after the middle, and the decoded digits are appended to result.
-	DecodeMiddle(row *bitutil.BitArray, startRange [2]int, result *strings.Builder) (int, error)
+// ean13FirstDigitEncodings maps the first EAN-13 digit to the L/G parity
+// pattern of the left six digits.
+var ean13FirstDigitEncodings = []int{0x00, 0x0B, 0x0D, 0x0E, 0x13, 0x19, 0x1C, 0x15, 0x16, 0x1A}
 
-	// BarcodeFormat returns the format this decoder handles.
-	BarcodeFormat() zxinggo.Format
+// upceNumSysAndCheckDigitPatterns represents the number system (index/10)
+// and check digit (index%10) implied by the parity of the six UPC-E digits.
+var upceNumSysAndCheckDigitPatterns = []int{
+	0x38, 0x34, 0x32, 0x31, 0x2C, 0x26, 0x23, 0x2A, 0x29, 0x25,
+	0x07, 0x0B, 0x0D, 0x0E, 0x13, 0x19, 0x1C, 0x15, 0x16, 0x1A,
 }
 
-// DecodeUPCEAN decodes a UPC/EAN barcode from a row using the given middle decoder.
-func DecodeUPCEAN(rowNumber int, row *bitutil.BitArray, decoder UPCEANMiddleDecoder, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
-	startRange, err := findUPCEANStartGuardPattern(row)
-	if err != nil {
-		return nil, err
-	}
-
-	var result strings.Builder
-	endStart, err := decoder.DecodeMiddle(row, startRange, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	endRange, err := findUPCEANEndGuardPattern(row, endStart, decoder.BarcodeFormat())
-	if err != nil {
-		return nil, err
-	}
-
-	// Quiet zone check after barcode
-	end := endRange[1]
-	quietEnd := end + (end - endRange[0])
-	if quietEnd >= row.Size() || !row.IsRange(end, quietEnd, false) {
-		return nil, zxinggo.ErrNotFound
-	}
-
-	resultString := result.String()
-	if len(resultString) < 8 {
-		return nil, zxinggo.ErrFormat
-	}
-
-	format := decoder.BarcodeFormat()
-	checksumStr := resultString
-	if format == zxinggo.FormatUPCE {
-		checksumStr = ConvertUPCEtoUPCA(resultString)
-	}
-	if !CheckStandardUPCEANChecksum(checksumStr) {
-		return nil, zxinggo.ErrChecksum
-	}
-	left := float64(startRange[1]+startRange[0]) / 2.0
-	right := float64(endRange[1]+endRange[0]) / 2.0
-	res := zxinggo.NewResult(
-		resultString, nil,
-		[]zxinggo.ResultPoint{
-			{X: left, Y: float64(rowNumber)},
-			{X: right, Y: float64(rowNumber)},
-		},
-		format,
-	)
-
-	symbologyID := "0"
-	if format == zxinggo.FormatEAN8 {
-		symbologyID = "4"
-	}
-	res.PutMetadata(zxinggo.MetadataSymbologyIdentifier, "]E"+symbologyID)
-
-	// Attempt to decode UPC/EAN extension (2 or 5 digit supplemental)
-	extResult, extErr := decodeUPCEANExtension(rowNumber, row, endRange[1])
-	if extErr == nil {
-		res.PutMetadata(zxinggo.MetadataUPCEANExtension, extResult.Text)
-		res.AddResultPoints(extResult.Points)
-		for k, v := range extResult.Metadata {
-			res.PutMetadata(k, v)
-		}
-	}
-
-	// If AllowedEANExtensions is set, reject if extension length doesn't match
-	if opts != nil && len(opts.AllowedEANExtensions) > 0 {
-		extLen := 0
-		if extErr == nil {
-			extLen = len(extResult.Text)
-		}
-		found := false
-		for _, allowed := range opts.AllowedEANExtensions {
-			if extLen == allowed {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return nil, zxinggo.ErrNotFound
-		}
-	}
-
-	return res, nil
-}
-
-// CheckStandardUPCEANChecksum verifies the UPC/EAN checksum.
+// CheckStandardUPCEANChecksum verifies the UPC/EAN check digit.
 func CheckStandardUPCEANChecksum(s string) bool {
 	length := len(s)
 	if length == 0 {
@@ -180,89 +86,36 @@ func GetStandardUPCEANChecksum(s string) int {
 	return (1000 - sum) % 10
 }
 
-func findUPCEANStartGuardPattern(row *bitutil.BitArray) ([2]int, error) {
-	counters := make([]int, len(UPCEANStartEndPattern))
-	nextStart := 0
-	for {
-		for i := range counters {
-			counters[i] = 0
-		}
-		startRange, err := findUPCEANGuardPattern(row, nextStart, false, UPCEANStartEndPattern, counters)
-		if err != nil {
-			return [2]int{}, err
-		}
-		start := startRange[0]
-		nextStart = startRange[1]
-		quietStart := start - (nextStart - start)
-		if quietStart >= 0 && row.IsRange(quietStart, start, false) {
-			return startRange, nil
-		}
+// ConvertUPCEtoUPCA expands a UPC-E value into its equivalent UPC-A code.
+func ConvertUPCEtoUPCA(upce string) string {
+	if len(upce) < 7 {
+		return upce
 	}
-}
-
-func findUPCEANEndGuardPattern(row *bitutil.BitArray, endStart int, format zxinggo.Format) ([2]int, error) {
-	if format == zxinggo.FormatUPCE {
-		return findUPCEANGuardPattern(row, endStart, true, UPCEANEndPattern, make([]int, len(UPCEANEndPattern)))
+	chars := upce[1:7]
+	var b []byte
+	b = append(b, upce[0])
+	lastChar := chars[5]
+	switch lastChar {
+	case '0', '1', '2':
+		b = append(b, chars[0:2]...)
+		b = append(b, lastChar)
+		b = append(b, "0000"...)
+		b = append(b, chars[2:5]...)
+	case '3':
+		b = append(b, chars[0:3]...)
+		b = append(b, "00000"...)
+		b = append(b, chars[3:5]...)
+	case '4':
+		b = append(b, chars[0:4]...)
+		b = append(b, "00000"...)
+		b = append(b, chars[4])
+	default:
+		b = append(b, chars[0:5]...)
+		b = append(b, "0000"...)
+		b = append(b, lastChar)
 	}
-	return findUPCEANGuardPattern(row, endStart, false, UPCEANStartEndPattern, make([]int, len(UPCEANStartEndPattern)))
-}
-
-func findUPCEANGuardPattern(row *bitutil.BitArray, rowOffset int, whiteFirst bool, pattern, counters []int) ([2]int, error) {
-	width := row.Size()
-	if whiteFirst {
-		rowOffset = row.GetNextUnset(rowOffset)
-	} else {
-		rowOffset = row.GetNextSet(rowOffset)
+	if len(upce) >= 8 {
+		b = append(b, upce[7])
 	}
-	counterPosition := 0
-	patternStart := rowOffset
-	patternLength := len(pattern)
-	isWhite := whiteFirst
-
-	for x := rowOffset; x < width; x++ {
-		if row.Get(x) != isWhite {
-			counters[counterPosition]++
-		} else {
-			if counterPosition == patternLength-1 {
-				if PatternMatchVariance(counters, pattern, upceanMaxIndividualVariance) < upceanMaxAvgVariance {
-					return [2]int{patternStart, x}, nil
-				}
-				patternStart += counters[0] + counters[1]
-				copy(counters, counters[2:counterPosition+1])
-				counters[counterPosition-1] = 0
-				counters[counterPosition] = 0
-				counterPosition--
-			} else {
-				counterPosition++
-			}
-			counters[counterPosition] = 1
-			isWhite = !isWhite
-		}
-	}
-	return [2]int{}, zxinggo.ErrNotFound
-}
-
-// FindUPCEANMiddleGuardPattern finds the middle guard pattern.
-func FindUPCEANMiddleGuardPattern(row *bitutil.BitArray, rowOffset int) ([2]int, error) {
-	return findUPCEANGuardPattern(row, rowOffset, true, UPCEANMiddlePattern, make([]int, len(UPCEANMiddlePattern)))
-}
-
-// DecodeUPCEANDigit attempts to decode a single UPC/EAN-encoded digit.
-func DecodeUPCEANDigit(row *bitutil.BitArray, counters []int, rowOffset int, patterns [][]int) (int, error) {
-	if err := RecordPattern(row, rowOffset, counters); err != nil {
-		return 0, err
-	}
-	bestVariance := upceanMaxAvgVariance
-	bestMatch := -1
-	for i, pattern := range patterns {
-		variance := PatternMatchVariance(counters, pattern, upceanMaxIndividualVariance)
-		if variance < bestVariance {
-			bestVariance = variance
-			bestMatch = i
-		}
-	}
-	if bestMatch >= 0 {
-		return bestMatch, nil
-	}
-	return 0, zxinggo.ErrNotFound
+	return string(b)
 }

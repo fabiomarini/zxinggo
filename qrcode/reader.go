@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/qrcode/decoder"
-	"github.com/ericlevine/zxinggo/qrcode/detector"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/qrcode/decoder"
+	"github.com/fabiomarini/zxinggo/qrcode/detector"
 )
 
 // Reader decodes QR codes from binary images.
@@ -51,26 +52,93 @@ func (r *Reader) Decode(image *zxinggo.BinaryBitmap, opts *zxinggo.DecodeOptions
 		return result, nil
 	}
 
+	if result := r.detectAndDecode(matrix, opts); result != nil {
+		return result, nil
+	}
+
+	if opts.TryHarder {
+		// Retry with a global histogram binarizer: block-based local
+		// thresholding (Hybrid) can fragment modules in photographs, where
+		// a global threshold yields a clean matrix. zxing-cpp's checkerboard
+		// binarizer does not show this artifact.
+		if src := image.Binarizer().LuminanceSource(); src != nil {
+			if alt, err := binarizer.NewGlobalHistogram(src).BlackMatrix(); err == nil && !matricesEqual(alt, matrix) {
+				if result := r.detectAndDecode(alt, opts); result != nil {
+					return result, nil
+				}
+			}
+		}
+
+		// 90-degree rotated pass (zxing-cpp's tryRotate): some symbols are
+		// only detected reliably along the other scan axis.
+		if rotated, err := image.RotateCounterClockwise(); err == nil {
+			if rotMatrix, err := rotated.BlackMatrix(); err == nil {
+				if result := r.detectAndDecode(rotMatrix, opts); result != nil {
+					fixRotatedPoints(result, rotated.Height())
+					return result, nil
+				}
+				if src := rotated.Binarizer().LuminanceSource(); src != nil {
+					if alt, err := binarizer.NewGlobalHistogram(src).BlackMatrix(); err == nil && !matricesEqual(alt, rotMatrix) {
+						if result := r.detectAndDecode(alt, opts); result != nil {
+							fixRotatedPoints(result, rotated.Height())
+							return result, nil
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil, zxinggo.ErrNotFound
+}
+
+// detectAndDecode runs the detector's candidate sampling grids and returns
+// the first candidate that decodes, or nil.
+func (r *Reader) detectAndDecode(matrix *bitutil.BitMatrix, opts *zxinggo.DecodeOptions) *zxinggo.Result {
 	det := detector.NewDetector(matrix)
-	detectorResult, err := det.Detect(opts.TryHarder)
-	if err != nil {
-		return nil, err
+	for _, detectorResult := range det.DetectCandidates(opts.TryHarder) {
+		dr, err := r.dec.Decode(detectorResult.Bits, opts.CharacterSet)
+		if err != nil {
+			continue
+		}
+		points := make([]zxinggo.ResultPoint, len(detectorResult.Points))
+		for i, p := range detectorResult.Points {
+			points[i] = zxinggo.ResultPoint{X: p.X, Y: p.Y}
+		}
+		result := zxinggo.NewResult(dr.Text, dr.RawBytes, points, zxinggo.FormatQRCode)
+		populateMetadata(result, dr.ByteSegments, dr.ECLevel,
+			dr.HasStructuredAppend(), dr.StructuredAppendSequenceNumber,
+			dr.StructuredAppendParity, dr.ErrorsCorrected, dr.SymbologyModifier)
+		return result
 	}
-	dr, err := r.dec.Decode(detectorResult.Bits, opts.CharacterSet)
-	if err != nil {
-		return nil, err
-	}
+	return nil
+}
 
-	points := make([]zxinggo.ResultPoint, len(detectorResult.Points))
-	for i, p := range detectorResult.Points {
-		points[i] = zxinggo.ResultPoint{X: p.X, Y: p.Y}
+// matricesEqual reports whether two binarized matrices are identical.
+func matricesEqual(a, b *bitutil.BitMatrix) bool {
+	if a.Width() != b.Width() || a.Height() != b.Height() {
+		return false
 	}
+	for y := range a.Height() {
+		for x := range a.Width() {
+			if a.Get(x, y) != b.Get(x, y) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
-	result := zxinggo.NewResult(dr.Text, dr.RawBytes, points, zxinggo.FormatQRCode)
-	populateMetadata(result, dr.ByteSegments, dr.ECLevel,
-		dr.HasStructuredAppend(), dr.StructuredAppendSequenceNumber,
-		dr.StructuredAppendParity, dr.ErrorsCorrected, dr.SymbologyModifier)
-	return result, nil
+// fixRotatedPoints maps result points from the counter-clockwise rotated
+// image back to original image coordinates. The rotation maps an original
+// point (x, y) to (y, width-1-x); the inverse is (x', y') ->
+// (rotatedHeight-1-y', x').
+func fixRotatedPoints(result *zxinggo.Result, rotatedHeight int) {
+	pts := result.Points
+	for i := range pts {
+		x, y := pts[i].X, pts[i].Y
+		pts[i] = zxinggo.ResultPoint{X: float64(rotatedHeight-1) - y, Y: x}
+	}
 }
 
 // Reset resets internal state.

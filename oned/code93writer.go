@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Code93Writer encodes Code 93 barcodes.
@@ -36,7 +36,7 @@ func (w *Code93Writer) encode(contents string) ([]bool, error) {
 	}
 
 	// length of code + 2 start/stop characters + 2 checksums, each of 9 bits, plus a termination bar
-	codeWidth := (length + 2 + 2) * 9 + 1
+	codeWidth := (length+2+2)*9 + 1
 	result := make([]bool, codeWidth)
 
 	// start character (*)

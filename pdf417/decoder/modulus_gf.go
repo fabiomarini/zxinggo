@@ -1,6 +1,8 @@
 // Package decoder implements the PDF417 barcode decoder.
 package decoder
 
+import "github.com/fabiomarini/zxinggo"
+
 // ModulusGF represents a field based on powers of a generator integer, modulo
 // some modulus. It is used for PDF417 error correction.
 type ModulusGF struct {
@@ -79,20 +81,22 @@ func (gf *ModulusGF) Exp(a int) int {
 	return gf.expTable[a]
 }
 
-// Log returns the logarithm of a in this field. Panics if a is 0.
-func (gf *ModulusGF) Log(a int) int {
+// Log returns the logarithm of a in this field. It returns an error when a
+// is 0.
+func (gf *ModulusGF) Log(a int) (int, error) {
 	if a == 0 {
-		panic("decoder: log(0)")
+		return 0, zxinggo.ErrChecksum
 	}
-	return gf.logTable[a]
+	return gf.logTable[a], nil
 }
 
-// Inverse returns the multiplicative inverse of a. Panics if a is 0.
-func (gf *ModulusGF) Inverse(a int) int {
+// Inverse returns the multiplicative inverse of a. It returns an error when
+// a is 0.
+func (gf *ModulusGF) Inverse(a int) (int, error) {
 	if a == 0 {
-		panic("decoder: inverse(0)")
+		return 0, zxinggo.ErrChecksum
 	}
-	return gf.expTable[gf.modulus-gf.logTable[a]-1]
+	return gf.expTable[gf.modulus-gf.logTable[a]-1], nil
 }
 
 // Multiply returns a * b in this field.

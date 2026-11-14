@@ -3,9 +3,9 @@ package datamatrix
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/datamatrix/encoder"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/datamatrix/encoder"
 )
 
 // Writer encodes Data Matrix barcodes.

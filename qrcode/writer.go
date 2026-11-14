@@ -3,10 +3,10 @@ package qrcode
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/qrcode/decoder"
-	"github.com/ericlevine/zxinggo/qrcode/encoder"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/qrcode/decoder"
+	"github.com/fabiomarini/zxinggo/qrcode/encoder"
 )
 
 const defaultQuietZoneSize = 4
@@ -66,5 +66,5 @@ func (w *Writer) Encode(contents string, format zxinggo.Format, width, height in
 	if err != nil {
 		return nil, err
 	}
-	return encoder.RenderResult(code, width, height, quietZone), nil
+	return encoder.RenderResult(code, width, height, quietZone)
 }

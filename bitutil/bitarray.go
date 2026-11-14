@@ -2,6 +2,7 @@
 package bitutil
 
 import (
+	"fmt"
 	"math/bits"
 	"strings"
 )
@@ -117,13 +118,14 @@ func (ba *BitArray) SetBulk(i int, newBits uint32) {
 	ba.bits[i/32] = newBits
 }
 
-// SetRange sets a range of bits [start, end).
-func (ba *BitArray) SetRange(start, end int) {
+// SetRange sets a range of bits [start, end). It returns an error when the
+// range is invalid.
+func (ba *BitArray) SetRange(start, end int) error {
 	if end < start || start < 0 || end > ba.size {
-		panic("bitarray: invalid range")
+		return fmt.Errorf("bitarray: invalid range [%d, %d) for size %d", start, end, ba.size)
 	}
 	if end == start {
-		return
+		return nil
 	}
 	end-- // treat as last set bit (inclusive)
 	firstInt := start / 32
@@ -135,7 +137,7 @@ func (ba *BitArray) SetRange(start, end int) {
 		} else {
 			firstBit = start & 0x1F
 		}
-		lastBit := 31
+		var lastBit int
 		if i < lastInt {
 			lastBit = 31
 		} else {
@@ -144,6 +146,7 @@ func (ba *BitArray) SetRange(start, end int) {
 		mask := uint32((2 << uint(lastBit)) - (1 << uint(firstBit)))
 		ba.bits[i] |= mask
 	}
+	return nil
 }
 
 // Clear clears all bits.
@@ -153,13 +156,14 @@ func (ba *BitArray) Clear() {
 	}
 }
 
-// IsRange checks if all bits in [start, end) have the given value.
-func (ba *BitArray) IsRange(start, end int, value bool) bool {
+// IsRange checks if all bits in [start, end) have the given value. It returns
+// an error when the range is invalid.
+func (ba *BitArray) IsRange(start, end int, value bool) (bool, error) {
 	if end < start || start < 0 || end > ba.size {
-		panic("bitarray: invalid range")
+		return false, fmt.Errorf("bitarray: invalid range [%d, %d) for size %d", start, end, ba.size)
 	}
 	if end == start {
-		return true
+		return true, nil
 	}
 	end--
 	firstInt := start / 32
@@ -176,15 +180,15 @@ func (ba *BitArray) IsRange(start, end int, value bool) bool {
 		mask := uint32((2 << uint(lastBit)) - (1 << uint(firstBit)))
 		if value {
 			if (ba.bits[i] & mask) != mask {
-				return false
+				return false, nil
 			}
 		} else {
 			if (ba.bits[i] & mask) != 0 {
-				return false
+				return false, nil
 			}
 		}
 	}
-	return true
+	return true, nil
 }
 
 // AppendBit appends a single bit.
@@ -232,11 +236,18 @@ func (ba *BitArray) Xor(other *BitArray) {
 	}
 }
 
-// ToBytes writes bits to a byte slice (most-significant byte first within each byte).
-func (ba *BitArray) ToBytes(bitOffset int, array []byte, offset, numBytes int) {
-	for i := 0; i < numBytes; i++ {
+// ToBytes writes bits to a byte slice (most-significant byte first within each
+// byte). It returns an error when the requested bit range or destination slice
+// is out of bounds.
+func (ba *BitArray) ToBytes(bitOffset int, array []byte, offset, numBytes int) error {
+	if bitOffset < 0 || numBytes < 0 || offset < 0 ||
+		offset+numBytes > len(array) || bitOffset+8*numBytes > ba.size {
+		return fmt.Errorf("bitarray: ToBytes(%d, %d bytes at %d) out of range (size %d, array %d)",
+			bitOffset, numBytes, offset, ba.size, len(array))
+	}
+	for i := range numBytes {
 		theByte := byte(0)
-		for j := 0; j < 8; j++ {
+		for j := range 8 {
 			if ba.Get(bitOffset) {
 				theByte |= 1 << uint(7-j)
 			}
@@ -244,6 +255,7 @@ func (ba *BitArray) ToBytes(bitOffset int, array []byte, offset, numBytes int) {
 		}
 		array[offset+i] = theByte
 	}
+	return nil
 }
 
 // BitData returns the underlying uint32 slice.

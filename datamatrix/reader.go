@@ -4,10 +4,10 @@ package datamatrix
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/datamatrix/decoder"
-	"github.com/ericlevine/zxinggo/datamatrix/detector"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/datamatrix/decoder"
+	"github.com/fabiomarini/zxinggo/datamatrix/detector"
 )
 
 // Reader decodes Data Matrix barcodes from binary images.
@@ -48,20 +48,84 @@ func (r *Reader) Decode(image *zxinggo.BinaryBitmap, opts *zxinggo.DecodeOptions
 		return result, nil
 	}
 
-	detResult, err := detector.Detect(matrix)
-	if err != nil {
-		return nil, err
+	// Detection attempts: center seed first, then the black-pixel bounding
+	// box center (handles off-center symbols and center-seeded rectangles
+	// that freeze inside the symbol), and under TryHarder a coarse 3×3 grid
+	// of seeds over the bounding box. A geometrically successful detection
+	// can still produce a grid that fails to decode, so every candidate is
+	// passed to the decoder and the first decoded one wins.
+	seeds := []detectSeed{{x: matrix.Width() / 2, y: matrix.Height() / 2, initSize: 10}}
+	if bl, bt, bw, bh, ok := detector.FindBoundingBox(matrix, 10); ok {
+		seeds = append(seeds, detectSeed{x: bl + bw/2, y: bt + bh/2, initSize: max(10, min(bw, bh)/4)})
+		if opts.TryHarder {
+			for _, fy := range []int{1, 2, 3} {
+				for _, fx := range []int{1, 2, 3} {
+					s := detectSeed{x: bl + bw*fx/4, y: bt + bh*fy/4, initSize: 10}
+					if !nearSeed(seeds, s, 10) {
+						seeds = append(seeds, s)
+					}
+				}
+			}
+		}
 	}
 
+	var lastErr error = zxinggo.ErrNotFound
+	for _, s := range seeds {
+		detResult, err := detector.DetectFrom(matrix, s.x, s.y, s.initSize)
+		if err == nil {
+			if result, ok := r.tryDecode(detResult); ok {
+				return result, nil
+			}
+		} else {
+			lastErr = err
+		}
+		variants, err := detector.DetectRefinedVariants(matrix, s.x, s.y, s.initSize)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		for _, v := range variants {
+			if result, ok := r.tryDecode(v); ok {
+				return result, nil
+			}
+		}
+	}
+	return nil, lastErr
+}
+
+// tryDecode runs the decoder on a detection result.
+func (r *Reader) tryDecode(detResult *detector.DetectorResult) (*zxinggo.Result, bool) {
 	dr, err := r.dec.Decode(detResult.Bits)
 	if err != nil {
-		return nil, err
+		return nil, false
 	}
-
 	result := zxinggo.NewResult(dr.Text, dr.RawBytes, detResult.Points, zxinggo.FormatDataMatrix)
 	result.PutMetadata(zxinggo.MetadataSymbologyIdentifier, fmt.Sprintf("]d%d", dr.SymbologyModifier))
 	result.PutMetadata(zxinggo.MetadataErrorsCorrected, dr.ErrorsCorrected)
-	return result, nil
+	return result, true
+}
+
+// detectSeed is one WhiteRectangleDetector seeding attempt.
+type detectSeed struct {
+	x, y, initSize int
+}
+
+// nearSeed reports whether s is within dist pixels (in each axis) of any
+// seed in tried.
+func nearSeed(tried []detectSeed, s detectSeed, dist int) bool {
+	for _, t := range tried {
+		if abs(t.x-s.x) <= dist && abs(t.y-s.y) <= dist {
+			return true
+		}
+	}
+	return false
+}
+
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 // Reset resets internal state.

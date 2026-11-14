@@ -2,9 +2,9 @@
 package aztec
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/aztec/decoder"
-	"github.com/ericlevine/zxinggo/aztec/detector"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/aztec/decoder"
+	"github.com/fabiomarini/zxinggo/aztec/detector"
 )
 
 // Reader decodes Aztec barcodes from binary images.
@@ -17,35 +17,40 @@ func NewReader() *Reader {
 
 // Decode locates and decodes an Aztec barcode in the given image.
 func (r *Reader) Decode(image *zxinggo.BinaryBitmap, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
+	if opts == nil {
+		opts = &zxinggo.DecodeOptions{}
+	}
+
 	matrix, err := image.BlackMatrix()
 	if err != nil {
 		return nil, err
 	}
 
-	detResult, err := detector.Detect(matrix, false)
-	if err != nil {
-		return nil, err
+	// Iterate over all detection candidates; the first one that decodes
+	// wins (zxing-cpp AZReader::read).
+	for _, detResult := range detector.Detect(matrix, opts.PureBarcode, opts.TryHarder) {
+		// Convert detector result to decoder input.
+		ddata := &decoder.AztecDetectorResult{
+			Bits:         detResult.Bits,
+			Points:       detResult.Points,
+			Compact:      detResult.Compact,
+			NbDataBlocks: detResult.NbDataBlocks,
+			NbLayers:     detResult.NbLayers,
+		}
+
+		dr, err := decoder.Decode(ddata)
+		if err != nil {
+			continue
+		}
+
+		errorsCorrected := detResult.ErrorsCorrected + dr.ErrorsCorrected
+		result := zxinggo.NewResult(dr.Text, dr.RawBytes, detResult.Points, zxinggo.FormatAztec)
+		result.PutMetadata(zxinggo.MetadataSymbologyIdentifier, "]z0")
+		result.PutMetadata(zxinggo.MetadataErrorsCorrected, errorsCorrected)
+		return result, nil
 	}
 
-	// Convert detector result to decoder input.
-	ddata := &decoder.AztecDetectorResult{
-		Bits:         detResult.Bits,
-		Points:       detResult.Points,
-		Compact:      detResult.Compact,
-		NbDataBlocks: detResult.NbDataBlocks,
-		NbLayers:     detResult.NbLayers,
-	}
-
-	dr, err := decoder.Decode(ddata)
-	if err != nil {
-		return nil, err
-	}
-
-	errorsCorrected := detResult.ErrorsCorrected + dr.ErrorsCorrected
-	result := zxinggo.NewResult(dr.Text, dr.RawBytes, detResult.Points, zxinggo.FormatAztec)
-	result.PutMetadata(zxinggo.MetadataSymbologyIdentifier, "]z0")
-	result.PutMetadata(zxinggo.MetadataErrorsCorrected, errorsCorrected)
-	return result, nil
+	return nil, zxinggo.ErrNotFound
 }
 
 // Reset resets internal state.

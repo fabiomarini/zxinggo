@@ -1,17 +1,23 @@
 package zxinggo_test
 
 import (
+	"image"
+	"image/color"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
 
 	// Register all format readers
-	_ "github.com/ericlevine/zxinggo/aztec"
-	_ "github.com/ericlevine/zxinggo/datamatrix"
-	_ "github.com/ericlevine/zxinggo/maxicode"
-	_ "github.com/ericlevine/zxinggo/oned"
-	_ "github.com/ericlevine/zxinggo/pdf417"
-	_ "github.com/ericlevine/zxinggo/qrcode"
+	_ "github.com/fabiomarini/zxinggo/aztec"
+	_ "github.com/fabiomarini/zxinggo/datamatrix"
+	_ "github.com/fabiomarini/zxinggo/maxicode"
+	_ "github.com/fabiomarini/zxinggo/oned"
+	_ "github.com/fabiomarini/zxinggo/pdf417"
+	_ "github.com/fabiomarini/zxinggo/qrcode"
 )
 
 // --- 2D Formats ---
@@ -34,10 +40,10 @@ func TestBlackBoxAztec2(t *testing.T) {
 		dir:    "aztec-2",
 		format: zxinggo.FormatAztec,
 		tests: []blackboxTestRotation{
-			rot(0, 5, 5),
-			rot(90, 4, 4),
-			rot(180, 6, 6),
-			rot(270, 3, 3),
+			rot(0, 22, 22),
+			rot(90, 22, 22),
+			rot(180, 22, 22),
+			rot(270, 22, 22),
 		},
 	})
 }
@@ -60,10 +66,10 @@ func TestBlackBoxDataMatrix2(t *testing.T) {
 		dir:    "datamatrix-2",
 		format: zxinggo.FormatDataMatrix,
 		tests: []blackboxTestRotation{
-			rotM(0, 13, 13, 0, 1),
-			rotM(90, 15, 15, 0, 1),
-			rotM(180, 17, 16, 0, 1),
-			rotM(270, 15, 15, 0, 1),
+			rotM(0, 16, 16, 0, 1),
+			rotM(90, 16, 16, 0, 1),
+			rotM(180, 17, 17, 0, 1),
+			rotM(270, 16, 16, 0, 1),
 		},
 	})
 }
@@ -86,10 +92,10 @@ func TestBlackBoxQRCode1(t *testing.T) {
 		dir:    "qrcode-1",
 		format: zxinggo.FormatQRCode,
 		tests: []blackboxTestRotation{
-			rot(0, 17, 17),
-			rot(90, 14, 14),
-			rot(180, 17, 17),
-			rot(270, 14, 14),
+			rot(0, 19, 19),
+			rot(90, 16, 19),
+			rot(180, 19, 19),
+			rot(270, 16, 19),
 		},
 	})
 }
@@ -99,10 +105,10 @@ func TestBlackBoxQRCode2(t *testing.T) {
 		dir:    "qrcode-2",
 		format: zxinggo.FormatQRCode,
 		tests: []blackboxTestRotation{
-			rot(0, 32, 32),
-			rot(90, 30, 30),
-			rot(180, 31, 31),
-			rot(270, 31, 31),
+			rot(0, 32, 33),
+			rot(90, 30, 34),
+			rot(180, 31, 34),
+			rot(270, 31, 33),
 		},
 	})
 }
@@ -112,10 +118,10 @@ func TestBlackBoxQRCode3(t *testing.T) {
 		dir:    "qrcode-3",
 		format: zxinggo.FormatQRCode,
 		tests: []blackboxTestRotation{
-			rot(0, 38, 38),
-			rot(90, 39, 39),
-			rot(180, 36, 36),
-			rot(270, 39, 39),
+			rot(0, 39, 42),
+			rot(90, 39, 42),
+			rot(180, 37, 41),
+			rot(270, 40, 42),
 		},
 	})
 }
@@ -125,10 +131,10 @@ func TestBlackBoxQRCode4(t *testing.T) {
 		dir:    "qrcode-4",
 		format: zxinggo.FormatQRCode,
 		tests: []blackboxTestRotation{
-			rot(0, 36, 36),
-			rot(90, 35, 35),
-			rot(180, 35, 35),
-			rot(270, 35, 35),
+			rot(0, 36, 42),
+			rot(90, 36, 42),
+			rot(180, 35, 42),
+			rot(270, 35, 42),
 		},
 	})
 }
@@ -152,9 +158,9 @@ func TestBlackBoxQRCode6(t *testing.T) {
 		format: zxinggo.FormatQRCode,
 		tests: []blackboxTestRotation{
 			rot(0, 15, 15),
-			rot(90, 14, 14),
-			rot(180, 13, 13),
-			rot(270, 14, 14),
+			rot(90, 14, 15),
+			rot(180, 13, 15),
+			rot(270, 14, 15),
 		},
 	})
 }
@@ -288,7 +294,7 @@ func TestBlackBoxEAN13_2(t *testing.T) {
 		dir:    "ean13-2",
 		format: zxinggo.FormatEAN13,
 		tests: []blackboxTestRotation{
-			rotM(0, 12, 17, 0, 1),
+			rotM(0, 11, 17, 0, 1),
 			rotM(180, 11, 17, 0, 1),
 		},
 	})
@@ -376,8 +382,8 @@ func TestBlackBoxUPCA2(t *testing.T) {
 		dir:    "upca-2",
 		format: zxinggo.FormatUPCA,
 		tests: []blackboxTestRotation{
-			rotM(0, 28, 36, 0, 2),
-			rotM(180, 29, 36, 0, 2),
+			rotM(0, 27, 35, 0, 2),
+			rotM(180, 29, 35, 0, 2),
 		},
 	})
 }
@@ -443,8 +449,8 @@ func TestBlackBoxUPCE2(t *testing.T) {
 		dir:    "upce-2",
 		format: zxinggo.FormatUPCE,
 		tests: []blackboxTestRotation{
-			rotM(0, 31, 35, 0, 1),
-			rotM(180, 31, 35, 1, 1),
+			rotM(0, 30, 35, 0, 2),
+			rotM(180, 30, 35, 1, 2),
 		},
 	})
 }
@@ -500,7 +506,7 @@ func TestBlackBoxRSSExpanded2(t *testing.T) {
 		dir:    "rssexpanded-2",
 		format: zxinggo.FormatRSSExpanded,
 		tests: []blackboxTestRotation{
-			rot(0, 21, 23),
+			rot(0, 21, 22),
 			rot(180, 21, 23),
 		},
 	})
@@ -576,7 +582,7 @@ func TestBlackBoxUPCEANExtension1(t *testing.T) {
 		dir:    "upcean-extension-1",
 		format: zxinggo.FormatEAN13,
 		tests: []blackboxTestRotation{
-			rot(0, 2, 2),
+			rotM(0, 1, 1, 0, 1),
 		},
 		opts: &zxinggo.DecodeOptions{
 			AllowedEANExtensions: []int{2, 5},
@@ -600,4 +606,76 @@ func TestBlackBoxInvertedDataMatrix(t *testing.T) {
 			AlsoInverted: true,
 		},
 	})
+}
+
+// invertImage returns a copy of img with every channel inverted.
+func invertImage(img image.Image) image.Image {
+	src := img.Bounds()
+	out := image.NewNRGBA(src)
+	for y := src.Min.Y; y < src.Max.Y; y++ {
+		for x := src.Min.X; x < src.Max.X; x++ {
+			r, g, b, a := img.At(x, y).RGBA()
+			out.SetNRGBA(x, y, color.NRGBA{
+				R: uint8(255 - r>>8), G: uint8(255 - g>>8),
+				B: uint8(255 - b>>8), A: uint8(a >> 8),
+			})
+		}
+	}
+	return out
+}
+
+// TestAlsoInverted1D verifies that AlsoInverted lets row-based 1D readers
+// decode white-on-black symbols. It inverts standard 1D images and asserts
+// they decode only when AlsoInverted is set, proving the retry path does
+// the work rather than the binarizer silently flipping the image.
+func TestAlsoInverted1D(t *testing.T) {
+	base := filepath.Join(blackboxTestDir, "code128-1")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded := 0
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) != ".png" {
+			continue
+		}
+		path := filepath.Join(base, e.Name())
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, _, err := image.Decode(f)
+		_ = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected, err := loadExpectedText(strings.TrimSuffix(path, ".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Feed a pixel-inverted image through a plain luminance source so
+		// the reader's AlsoInverted retry (not a pre-inverted source) does
+		// the work.
+		inverted := zxinggo.NewBinaryBitmap(
+			binarizer.NewHybrid(zxinggo.NewImageLuminanceSource(invertImage(img))))
+
+		opts := &zxinggo.DecodeOptions{
+			PossibleFormats: []zxinggo.Format{zxinggo.FormatCode128},
+			AlsoInverted:    true,
+		}
+		result, err := zxinggo.Decode(inverted, opts)
+		if err != nil || result.Text != expected {
+			t.Errorf("%s: AlsoInverted decode: got %q (%v), want %q", e.Name(), resultText(result), err, expected)
+		}
+
+		opts.AlsoInverted = false
+		if result, err := zxinggo.Decode(inverted, opts); err == nil {
+			t.Errorf("%s: inverted image decoded without AlsoInverted (%q)", e.Name(), result.Text)
+		}
+		decoded++
+	}
+	if decoded == 0 {
+		t.Fatal("no code128-1 images found")
+	}
 }

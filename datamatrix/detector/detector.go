@@ -11,9 +11,9 @@ package detector
 import (
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/transform"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/transform"
 )
 
 // DetectorResult holds the result of detecting a Data Matrix barcode: the
@@ -33,9 +33,18 @@ type detector struct {
 }
 
 // Detect locates a Data Matrix barcode in the given binary image and returns
-// the sampled bit matrix along with the four corner points.
+// the sampled bit matrix along with the four corner points. It seeds the
+// rectangle detector at the image center.
 func Detect(image *bitutil.BitMatrix) (*DetectorResult, error) {
-	wrd, err := newWhiteRectangleDetector(image)
+	return DetectFrom(image, image.Width()/2, image.Height()/2, initSize)
+}
+
+// DetectFrom runs the detection pipeline with the rectangle detector seeded
+// at (x, y) using the given initial search size. Callers may retry with
+// different seeds (e.g. the black-pixel bounding-box center) when the
+// center-seeded attempt fails or its sampled grid does not decode.
+func DetectFrom(image *bitutil.BitMatrix, x, y, initSz int) (*DetectorResult, error) {
+	wrd, err := newWhiteRectangleDetectorWithInit(image, initSz, x, y)
 	if err != nil {
 		return nil, err
 	}
@@ -46,17 +55,109 @@ func Detect(image *bitutil.BitMatrix) (*DetectorResult, error) {
 	return d.detect()
 }
 
+// FindBoundingBox returns the bounding box of the black pixels in the image,
+// reporting ok=false if there are no black pixels or the box is smaller than
+// minSize in either dimension. Ported from zxing-cpp BitMatrix::findBoundingBox.
+func FindBoundingBox(image *bitutil.BitMatrix, minSize int) (left, top, width, height int, ok bool) {
+	w, h := image.Width(), image.Height()
+	left, top = w, h
+	right, bottom := -1, -1
+	for y := range h {
+		for x := range w {
+			if image.Get(x, y) {
+				if x < left {
+					left = x
+				}
+				if x > right {
+					right = x
+				}
+				if y < top {
+					top = y
+				}
+				if y > bottom {
+					bottom = y
+				}
+			}
+		}
+	}
+	if right < 0 || bottom-top+1 < minSize {
+		return 0, 0, 0, 0, false
+	}
+	width = right - left + 1
+	height = bottom - top + 1
+	if width < minSize || height < minSize {
+		return 0, 0, 0, 0, false
+	}
+	return left, top, width, height, true
+}
+
 func (d *detector) detect() (*DetectorResult, error) {
-	cornerPoints, err := d.rectangleDetector.detect()
+	points, dimTop, dimRight, err := d.detectCorners()
 	if err != nil {
 		return nil, err
+	}
+	bits, err := sampleGrid(d.image,
+		points[0], points[1], points[2], points[3],
+		dimTop, dimRight)
+	if err != nil {
+		return nil, err
+	}
+	return &DetectorResult{Bits: bits, Points: points}, nil
+}
+
+// DetectRefinedVariants runs the detection pipeline seeded at (x, y) and
+// then refines the four corner points by fitting the symbol's edge lines to
+// the image (see refine.go). This recovers corner placement errors of up to
+// a module that make the sampled grid undecodable on photographs. It returns
+// one candidate per plausible dimension estimate.
+func DetectRefinedVariants(image *bitutil.BitMatrix, x, y, initSz int) ([]*DetectorResult, error) {
+	wrd, err := newWhiteRectangleDetectorWithInit(image, initSz, x, y)
+	if err != nil {
+		return nil, err
+	}
+	d := &detector{
+		image:             image,
+		rectangleDetector: wrd,
+	}
+	points, dimTop, dimRight, err := d.detectCorners()
+	if err != nil {
+		return nil, err
+	}
+	points, cands, ok := refineEdges(image, points, dimTop, dimRight)
+	if !ok {
+		return nil, zxinggo.ErrNotFound
+	}
+	var out []*DetectorResult
+	for _, c := range cands {
+		bits, err := sampleGrid(image,
+			points[0], points[1], points[2], points[3],
+			c[0], c[1])
+		if err != nil {
+			continue
+		}
+		out = append(out, &DetectorResult{Bits: bits, Points: points})
+	}
+	if len(out) == 0 {
+		return nil, zxinggo.ErrNotFound
+	}
+	return out, nil
+}
+
+// detectCorners runs the WhiteRectangleDetector and the corner correction
+// pipeline, returning module-center corner points [topLeft, bottomLeft,
+// bottomRight, topRight] plus the pseudo dimensions along the top and right
+// edges.
+func (d *detector) detectCorners() ([]zxinggo.ResultPoint, int, int, error) {
+	cornerPoints, err := d.rectangleDetector.detect()
+	if err != nil {
+		return nil, 0, 0, err
 	}
 
 	points := d.detectSolid1(cornerPoints)
 	points = d.detectSolid2(points)
 	points[3] = d.correctTopRight(points)
 	if points[3] == (zxinggo.ResultPoint{}) {
-		return nil, zxinggo.ErrNotFound
+		return nil, 0, 0, zxinggo.ErrNotFound
 	}
 	points = d.shiftToModuleCenter(points)
 
@@ -83,17 +184,7 @@ func (d *detector) detect() (*DetectorResult, error) {
 		}
 	}
 
-	bits, err := sampleGrid(d.image,
-		topLeft, bottomLeft, bottomRight, topRight,
-		dimensionTop, dimensionRight)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DetectorResult{
-		Bits:   bits,
-		Points: []zxinggo.ResultPoint{topLeft, bottomLeft, bottomRight, topRight},
-	}, nil
+	return []zxinggo.ResultPoint{topLeft, bottomLeft, bottomRight, topRight}, dimensionTop, dimensionRight, nil
 }
 
 // shiftPoint shifts a point toward another point by 1/(div+1) of the distance.

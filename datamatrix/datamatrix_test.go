@@ -3,9 +3,9 @@ package datamatrix
 import (
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/binarizer"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 func TestDataMatrixRoundTrip(t *testing.T) {

@@ -3,7 +3,7 @@ package decoder
 import (
 	"fmt"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // ReadCodewords reads codewords from a Data Matrix bit matrix using the standard
@@ -132,7 +132,7 @@ func readMappingMatrix(mappingBitMatrix *bitutil.BitMatrix, numRows, numColumns 
 				}
 				row -= 2
 				column += 2
-				if !(row >= 0 && column < numColumns) {
+				if row < 0 || column >= numColumns {
 					break
 				}
 			}
@@ -147,7 +147,7 @@ func readMappingMatrix(mappingBitMatrix *bitutil.BitMatrix, numRows, numColumns 
 				}
 				row += 2
 				column -= 2
-				if !(row < numRows && column >= 0) {
+				if row >= numRows || column < 0 {
 					break
 				}
 			}
@@ -155,7 +155,7 @@ func readMappingMatrix(mappingBitMatrix *bitutil.BitMatrix, numRows, numColumns 
 			column += 1
 		}
 
-		if !(row < numRows || column < numColumns) {
+		if row >= numRows && column >= numColumns {
 			break
 		}
 	}

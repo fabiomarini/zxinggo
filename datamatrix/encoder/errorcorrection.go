@@ -9,7 +9,7 @@ package encoder
 import (
 	"fmt"
 
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // EncodeECC200 generates Reed-Solomon ECC-200 error correction codewords and
@@ -102,7 +102,9 @@ func generateECCBlock(data []byte, numECCodewords int) ([]byte, error) {
 		toEncode[i] = int(b)
 	}
 
-	rsEncoder.Encode(toEncode, numECCodewords)
+	if err := rsEncoder.Encode(toEncode, numECCodewords); err != nil {
+		return nil, err
+	}
 
 	// Extract the EC codewords.
 	ec := make([]byte, numECCodewords)

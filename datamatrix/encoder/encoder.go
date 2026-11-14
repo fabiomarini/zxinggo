@@ -10,7 +10,7 @@ package encoder
 import (
 	"fmt"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Encode encodes the contents string into a Data Matrix ECC-200 symbol,

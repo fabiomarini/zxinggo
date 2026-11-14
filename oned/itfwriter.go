@@ -3,8 +3,8 @@ package oned
 import (
 	"fmt"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // ITFWriter encodes ITF (Interleaved 2 of 5) barcodes.
@@ -37,14 +37,6 @@ func (w *ITFWriter) encode(contents string) ([]bool, error) {
 	length := len(contents)
 	// Each digit pair encodes to 5+5 = 10 bars/spaces with width 1 or 3.
 	// Start pattern: 1+1+1+1 = 4. End pattern: 3+1+1 = 5 (wide-narrow-narrow).
-	// A digit pair has total width: sum of (narrow/wide) for bars + sum for spaces.
-	// Each pair: 5 narrow/wide bars interleaved with 5 narrow/wide spaces.
-	// Width = sum of widths for both digits.
-	digitPairWidth := 0
-	for _, w := range itfPatterns[0] {
-		digitPairWidth += w
-	}
-	digitPairWidth *= 2 // bars + spaces (worst case for sizing doesn't matter, we compute exactly)
 
 	// Actually compute total width precisely:
 	// Start: 4 (1+1+1+1), End: 5 (3+1+1)

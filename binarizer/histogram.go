@@ -2,8 +2,8 @@
 package binarizer
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 const (
@@ -28,6 +28,13 @@ func NewGlobalHistogram(source zxinggo.LuminanceSource) *GlobalHistogram {
 // LuminanceSource returns the underlying source.
 func (g *GlobalHistogram) LuminanceSource() zxinggo.LuminanceSource {
 	return g.source
+}
+
+// CreateBinarizer creates a new GlobalHistogram binarizer with the given
+// source. It implements the BinarizerFactory interface to support image
+// rotation and inversion.
+func (g *GlobalHistogram) CreateBinarizer(source zxinggo.LuminanceSource) zxinggo.Binarizer {
+	return NewGlobalHistogram(source)
 }
 
 // Width returns the image width.

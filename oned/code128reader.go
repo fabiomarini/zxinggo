@@ -2,11 +2,10 @@ package oned
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Code128 constants
@@ -134,9 +133,9 @@ var Code128Patterns = [107][]int{
 	{1, 1, 4, 1, 3, 1}, // 100
 	{3, 1, 1, 1, 4, 1},
 	{4, 1, 1, 1, 3, 1},
-	{2, 1, 1, 4, 1, 2}, // START_A
-	{2, 1, 1, 2, 1, 4}, // START_B
-	{2, 1, 1, 2, 3, 2}, // START_C
+	{2, 1, 1, 4, 1, 2},    // START_A
+	{2, 1, 1, 2, 1, 4},    // START_B
+	{2, 1, 1, 2, 3, 2},    // START_C
 	{2, 3, 3, 1, 1, 1, 2}, // STOP
 }
 
@@ -333,7 +332,7 @@ func (r *Code128Reader) DecodeRow(rowNumber int, row *bitutil.BitArray, opts *zx
 				if code < 10 {
 					result.WriteByte('0')
 				}
-				result.WriteString(fmt.Sprintf("%d", code))
+				_, _ = fmt.Fprintf(&result, "%d", code)
 			} else {
 				if code != code128Stop {
 					lastCharacterWasPrintable = false
@@ -379,7 +378,7 @@ func (r *Code128Reader) DecodeRow(rowNumber int, row *bitutil.BitArray, opts *zx
 	if endCheck > row.Size() {
 		endCheck = row.Size()
 	}
-	if !row.IsRange(nextStart, endCheck, false) {
+	if ok, err := row.IsRange(nextStart, endCheck, false); err != nil || !ok {
 		return nil, zxinggo.ErrNotFound
 	}
 
@@ -452,7 +451,7 @@ func findCode128StartPattern(row *bitutil.BitArray) ([3]int, error) {
 					if whiteStart < 0 {
 						whiteStart = 0
 					}
-					if row.IsRange(whiteStart, patternStart, false) {
+					if ok, err := row.IsRange(whiteStart, patternStart, false); err == nil && ok {
 						return [3]int{patternStart, i, bestMatch}, nil
 					}
 				}
@@ -490,6 +489,3 @@ func decodeCode128(row *bitutil.BitArray, counters []int, rowOffset int) (int, e
 	}
 	return -1, zxinggo.ErrNotFound
 }
-
-// suppress unused import warning
-var _ = math.Inf

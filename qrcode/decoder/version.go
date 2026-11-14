@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // ECB represents a single error-correction block specification.
@@ -52,41 +52,48 @@ func (v *Version) ECBlocksForLevel(ecLevel ErrorCorrectionLevel) *ECBlocks {
 }
 
 // BuildFunctionPattern builds a BitMatrix indicating function pattern modules.
-func (v *Version) BuildFunctionPattern() *bitutil.BitMatrix {
+func (v *Version) BuildFunctionPattern() (*bitutil.BitMatrix, error) {
 	dimension := v.DimensionForVersion()
 	bm := bitutil.NewBitMatrix(dimension)
 
-	// Top left finder pattern + separator + format
-	bm.SetRegion(0, 0, 9, 9)
-	// Top right finder pattern + separator + format
-	bm.SetRegion(dimension-8, 0, 8, 9)
-	// Bottom left finder pattern + separator + format
-	bm.SetRegion(0, dimension-8, 9, 8)
+	regions := [][4]int{
+		// Top left finder pattern + separator + format
+		{0, 0, 9, 9},
+		// Top right finder pattern + separator + format
+		{dimension - 8, 0, 8, 9},
+		// Bottom left finder pattern + separator + format
+		{0, dimension - 8, 9, 8},
+	}
 
 	// Alignment patterns
 	max := len(v.AlignmentPatternCenters)
-	for x := 0; x < max; x++ {
+	for x := range max {
 		i := v.AlignmentPatternCenters[x] - 2
-		for y := 0; y < max; y++ {
+		for y := range max {
 			if (x != 0 || (y != 0 && y != max-1)) && (x != max-1 || y != 0) {
-				bm.SetRegion(v.AlignmentPatternCenters[y]-2, i, 5, 5)
+				regions = append(regions, [4]int{v.AlignmentPatternCenters[y] - 2, i, 5, 5})
 			}
 		}
 	}
 
 	// Vertical timing pattern
-	bm.SetRegion(6, 9, 1, dimension-17)
+	regions = append(regions, [4]int{6, 9, 1, dimension - 17})
 	// Horizontal timing pattern
-	bm.SetRegion(9, 6, dimension-17, 1)
+	regions = append(regions, [4]int{9, 6, dimension - 17, 1})
 
 	if v.Number > 6 {
 		// Version info, top right
-		bm.SetRegion(dimension-11, 0, 3, 6)
+		regions = append(regions, [4]int{dimension - 11, 0, 3, 6})
 		// Version info, bottom left
-		bm.SetRegion(0, dimension-11, 6, 3)
+		regions = append(regions, [4]int{0, dimension - 11, 6, 3})
 	}
 
-	return bm
+	for _, r := range regions {
+		if err := bm.SetRegion(r[0], r[1], r[2], r[3]); err != nil {
+			return nil, err
+		}
+	}
+	return bm, nil
 }
 
 // versionDecodeInfo maps version bits to versions 7+.

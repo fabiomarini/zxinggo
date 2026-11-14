@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // parseExpandedInformation is the entry point: creates a decoder and parses.
@@ -488,7 +488,7 @@ func encodeCompressedGtinWithoutAI(gd *generalAppIdDecoder, buf *strings.Builder
 		if currentBlock/10 == 0 {
 			buf.WriteByte('0')
 		}
-		buf.WriteString(fmt.Sprintf("%d", currentBlock))
+		_, _ = fmt.Fprintf(buf, "%d", currentBlock)
 	}
 	appendCheckDigit(buf, initialBufferPosition)
 }
@@ -522,7 +522,7 @@ func encodeCompressedWeight(gd *generalAppIdDecoder, buf *strings.Builder, curre
 		}
 		currentDivisor /= 10
 	}
-	buf.WriteString(fmt.Sprintf("%d", weightNumeric))
+	_, _ = fmt.Fprintf(buf, "%d", weightNumeric)
 }
 
 // --- Specific AI decoders ---
@@ -592,12 +592,11 @@ func decodeAI01392x(gd *generalAppIdDecoder) (string, error) {
 	var buf strings.Builder
 	encodeCompressedGtin(gd, &buf, headerSize)
 	lastAIdigit := gd.extractNumeric(headerSize+gtinSize, lastDigitSize)
-	buf.WriteString(fmt.Sprintf("(392%d)", lastAIdigit))
-	info, newPos, _, _, err := gd.decodeGeneralPurposeField(headerSize+gtinSize+lastDigitSize, nil)
+	_, _ = fmt.Fprintf(&buf, "(392%d)", lastAIdigit)
+	info, _, _, _, err := gd.decodeGeneralPurposeField(headerSize+gtinSize+lastDigitSize, nil)
 	if err != nil {
 		return "", err
 	}
-	_ = newPos
 	buf.WriteString(info)
 	return buf.String(), nil
 }
@@ -612,7 +611,7 @@ func decodeAI01393x(gd *generalAppIdDecoder) (string, error) {
 	var buf strings.Builder
 	encodeCompressedGtin(gd, &buf, headerSize)
 	lastAIdigit := gd.extractNumeric(headerSize+gtinSize, lastDigitSize)
-	buf.WriteString(fmt.Sprintf("(393%d)", lastAIdigit))
+	_, _ = fmt.Fprintf(&buf, "(393%d)", lastAIdigit)
 	firstThreeDigits := gd.extractNumeric(headerSize+gtinSize+lastDigitSize, firstThreeDigitsSize)
 	if firstThreeDigits/100 == 0 {
 		buf.WriteByte('0')
@@ -620,7 +619,7 @@ func decodeAI01393x(gd *generalAppIdDecoder) (string, error) {
 	if firstThreeDigits/10 == 0 {
 		buf.WriteByte('0')
 	}
-	buf.WriteString(fmt.Sprintf("%d", firstThreeDigits))
+	_, _ = fmt.Fprintf(&buf, "%d", firstThreeDigits)
 	info, _, _, _, err := gd.decodeGeneralPurposeField(headerSize+gtinSize+lastDigitSize+firstThreeDigitsSize, nil)
 	if err != nil {
 		return "", err
@@ -640,7 +639,7 @@ func decodeAI013x0x1x(gd *generalAppIdDecoder, firstAIdigits, dateCode string) (
 	encodeCompressedGtin(gd, &buf, headerSize)
 	encodeCompressedWeight(gd, &buf, headerSize+gtinSize, weightSize,
 		func(b *strings.Builder, weight int) {
-			b.WriteString(fmt.Sprintf("(%s%d)", firstAIdigits, weight/100000))
+			_, _ = fmt.Fprintf(b, "(%s%d)", firstAIdigits, weight/100000)
 		},
 		func(weight int) int { return weight % 100000 })
 	encodeCompressedDate(&buf, gd, headerSize+gtinSize+weightSize, dateCode)
@@ -665,15 +664,15 @@ func encodeCompressedDate(buf *strings.Builder, gd *generalAppIdDecoder, current
 	if year/10 == 0 {
 		buf.WriteByte('0')
 	}
-	buf.WriteString(fmt.Sprintf("%d", year))
+	_, _ = fmt.Fprintf(buf, "%d", year)
 	if month/10 == 0 {
 		buf.WriteByte('0')
 	}
-	buf.WriteString(fmt.Sprintf("%d", month))
+	_, _ = fmt.Fprintf(buf, "%d", month)
 	if day/10 == 0 {
 		buf.WriteByte('0')
 	}
-	buf.WriteString(fmt.Sprintf("%d", day))
+	_, _ = fmt.Fprintf(buf, "%d", day)
 }
 
 // --- FieldParser ---
@@ -857,4 +856,3 @@ func processVariableAI(aiSize, variableFieldSize int, rawInformation string) (st
 	}
 	return result + parsedAI, nil
 }
-

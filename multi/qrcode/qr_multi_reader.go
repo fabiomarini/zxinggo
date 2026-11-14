@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/qrcode/decoder"
-	"github.com/ericlevine/zxinggo/qrcode/detector"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/qrcode/decoder"
+	"github.com/fabiomarini/zxinggo/qrcode/detector"
 )
 
 // QRCodeMultiReader can detect and decode multiple QR codes in an image,

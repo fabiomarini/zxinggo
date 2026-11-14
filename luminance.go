@@ -1,6 +1,6 @@
 package zxinggo
 
-import "github.com/ericlevine/zxinggo/bitutil"
+import "github.com/fabiomarini/zxinggo/bitutil"
 
 // LuminanceSource provides access to greyscale luminance values for an image.
 type LuminanceSource interface {
@@ -34,4 +34,18 @@ type Binarizer interface {
 
 	// Height returns the height of the image.
 	Height() int
+}
+
+// croppableSource is implemented by LuminanceSources that support cropping to
+// a rectangular sub-region. Crop returns nil when the region is invalid.
+type croppableSource interface {
+	LuminanceSource
+	Crop(left, top, width, height int) LuminanceSource
+}
+
+// rotatableSource is implemented by LuminanceSources that support rotation by
+// 90 degrees counterclockwise.
+type rotatableSource interface {
+	LuminanceSource
+	RotateCounterClockwise() LuminanceSource
 }

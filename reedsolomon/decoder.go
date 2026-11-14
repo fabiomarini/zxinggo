@@ -43,9 +43,16 @@ func (d *Decoder) Decode(received []int, twoS int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	errorMagnitudes := d.findErrorMagnitudes(omega, errorLocations)
+	errorMagnitudes, err := d.findErrorMagnitudes(omega, errorLocations)
+	if err != nil {
+		return 0, err
+	}
 	for i := 0; i < len(errorLocations); i++ {
-		position := len(received) - 1 - d.field.Log(errorLocations[i])
+		logVal, err := d.field.Log(errorLocations[i])
+		if err != nil {
+			return 0, err
+		}
+		position := len(received) - 1 - logVal
 		if position < 0 {
 			return 0, ErrReedSolomon
 		}
@@ -76,7 +83,10 @@ func (d *Decoder) runEuclideanAlgorithm(a, b *GenericGFPoly, R int) ([2]*Generic
 		r = rLastLast
 		q := d.field.Zero()
 		denominatorLeadingTerm := rLast.GetCoefficient(rLast.Degree())
-		dltInverse := d.field.Inverse(denominatorLeadingTerm)
+		dltInverse, err := d.field.Inverse(denominatorLeadingTerm)
+		if err != nil {
+			return [2]*GenericGFPoly{}, err
+		}
 		for r.Degree() >= rLast.Degree() && !r.IsZero() {
 			degreeDiff := r.Degree() - rLast.Degree()
 			scale := d.field.Multiply(r.GetCoefficient(r.Degree()), dltInverse)
@@ -96,7 +106,10 @@ func (d *Decoder) runEuclideanAlgorithm(a, b *GenericGFPoly, R int) ([2]*Generic
 		return [2]*GenericGFPoly{}, ErrReedSolomon
 	}
 
-	inverse := d.field.Inverse(sigmaTildeAtZero)
+	inverse, err := d.field.Inverse(sigmaTildeAtZero)
+	if err != nil {
+		return [2]*GenericGFPoly{}, err
+	}
 	sigma := t.MultiplyScalar(inverse)
 	omega := r.MultiplyScalar(inverse)
 	return [2]*GenericGFPoly{sigma, omega}, nil
@@ -110,7 +123,11 @@ func (d *Decoder) findErrorLocations(errorLocator *GenericGFPoly) ([]int, error)
 	result := make([]int, 0, numErrors)
 	for i := 1; i < d.field.Size() && len(result) < numErrors; i++ {
 		if errorLocator.EvaluateAt(i) == 0 {
-			result = append(result, d.field.Inverse(i))
+			inv, err := d.field.Inverse(i)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, inv)
 		}
 	}
 	if len(result) != numErrors {
@@ -119,11 +136,14 @@ func (d *Decoder) findErrorLocations(errorLocator *GenericGFPoly) ([]int, error)
 	return result, nil
 }
 
-func (d *Decoder) findErrorMagnitudes(errorEvaluator *GenericGFPoly, errorLocations []int) []int {
+func (d *Decoder) findErrorMagnitudes(errorEvaluator *GenericGFPoly, errorLocations []int) ([]int, error) {
 	s := len(errorLocations)
 	result := make([]int, s)
 	for i := 0; i < s; i++ {
-		xiInverse := d.field.Inverse(errorLocations[i])
+		xiInverse, err := d.field.Inverse(errorLocations[i])
+		if err != nil {
+			return nil, err
+		}
 		denominator := 1
 		for j := 0; j < s; j++ {
 			if i != j {
@@ -135,10 +155,14 @@ func (d *Decoder) findErrorMagnitudes(errorEvaluator *GenericGFPoly, errorLocati
 				denominator = d.field.Multiply(denominator, termPlus1)
 			}
 		}
-		result[i] = d.field.Multiply(errorEvaluator.EvaluateAt(xiInverse), d.field.Inverse(denominator))
+		denInv, err := d.field.Inverse(denominator)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = d.field.Multiply(errorEvaluator.EvaluateAt(xiInverse), denInv)
 		if d.field.GeneratorBase() != 0 {
 			result[i] = d.field.Multiply(result[i], xiInverse)
 		}
 	}
-	return result
+	return result, nil
 }

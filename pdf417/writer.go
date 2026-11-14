@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/pdf417/encoder"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/pdf417/encoder"
 )
 
 const (
-	defaultWhiteSpace            = 30
-	defaultErrorCorrectionLevel  = 2
+	defaultWhiteSpace           = 30
+	defaultErrorCorrectionLevel = 2
 )
 
 // PDF417Writer encodes PDF417 barcodes.

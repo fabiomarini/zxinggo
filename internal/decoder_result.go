@@ -3,17 +3,17 @@ package internal
 
 // DecoderResult encapsulates the result of decoding a matrix of bits.
 type DecoderResult struct {
-	RawBytes                      []byte
-	NumBits                       int
-	Text                          string
-	ByteSegments                  [][]byte
-	ECLevel                       string
-	ErrorsCorrected               int
-	Erasures                      int
-	Other                         interface{}
-	StructuredAppendParity        int
+	RawBytes                       []byte
+	NumBits                        int
+	Text                           string
+	ByteSegments                   [][]byte
+	ECLevel                        string
+	ErrorsCorrected                int
+	Erasures                       int
+	Other                          interface{}
+	StructuredAppendParity         int
 	StructuredAppendSequenceNumber int
-	SymbologyModifier             int
+	SymbologyModifier              int
 }
 
 // NewDecoderResult creates a DecoderResult with the basic fields.

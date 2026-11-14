@@ -1,6 +1,6 @@
 package datamatrix
 
-import zxinggo "github.com/ericlevine/zxinggo"
+import zxinggo "github.com/fabiomarini/zxinggo"
 
 func init() {
 	zxinggo.RegisterReader(zxinggo.FormatDataMatrix, func(opts *zxinggo.DecodeOptions) zxinggo.Reader {

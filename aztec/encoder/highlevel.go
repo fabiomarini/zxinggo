@@ -4,7 +4,7 @@ package encoder
 import (
 	"fmt"
 
-	"github.com/ericlevine/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Encoding modes for the Aztec high-level encoder.
@@ -231,10 +231,11 @@ func highLevelEncode(data []byte) (*bitutil.BitArray, error) {
 			// No character mode can encode this byte; use binary shift.
 			// Binary shift is available from UPPER, LOWER, and MIXED (code 31).
 			// It is not available from DIGIT or PUNCT, so latch out first.
-			if curMode == modeDigit {
+			switch curMode {
+			case modeDigit:
 				result.AppendBits(14, modeBits[modeDigit]) // UL
 				curMode = modeUpper
-			} else if curMode == modePunct {
+			case modePunct:
 				result.AppendBits(31, modeBits[modePunct]) // UL
 				curMode = modeUpper
 			}
@@ -272,8 +273,8 @@ func findBestMode(b byte, curMode int) int {
 		{modeLower, modeMixed, modeDigit, modePunct}, // from UPPER
 		{modeDigit, modeMixed, modeUpper, modePunct}, // from LOWER
 		{modeUpper, modePunct, modeLower, modeDigit}, // from MIXED
-		{modeUpper, modeLower, modeMixed, modePunct},  // from DIGIT
-		{modeUpper, modeLower, modeMixed, modeDigit},  // from PUNCT
+		{modeUpper, modeLower, modeMixed, modePunct}, // from DIGIT
+		{modeUpper, modeLower, modeMixed, modeDigit}, // from PUNCT
 	}
 	for _, m := range preferenceOrders[curMode] {
 		if charMap[b][m] != -1 {

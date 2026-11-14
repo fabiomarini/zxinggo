@@ -1,8 +1,8 @@
 package oned
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // expandedPair represents a pair of data characters with a finder pattern in RSS Expanded.

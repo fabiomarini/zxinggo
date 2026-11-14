@@ -3,9 +3,9 @@ package maxicode
 import (
 	"testing"
 
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/maxicode/decoder"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/maxicode/decoder"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // TestDecoderMode4 builds a BitMatrix from hand-crafted codewords and decodes it.
@@ -39,7 +39,9 @@ func TestDecoderMode4(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		primary[i] = int(codewords[i])
 	}
-	enc.Encode(primary, 10)
+	if err := enc.Encode(primary, 10); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 10; i++ {
 		codewords[10+i] = byte(primary[10+i])
 	}
@@ -56,8 +58,12 @@ func TestDecoderMode4(t *testing.T) {
 			oddBlock[i/2] = int(codewords[20+i])
 		}
 	}
-	enc.Encode(evenBlock, 20)
-	enc.Encode(oddBlock, 20)
+	if err := enc.Encode(evenBlock, 20); err != nil {
+		t.Fatal(err)
+	}
+	if err := enc.Encode(oddBlock, 20); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write ECC back interleaved into codewords[104..143]
 	for i := 0; i < 40; i++ {
@@ -118,7 +124,9 @@ func TestDecoderMode4Longer(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		primary[i] = int(codewords[i])
 	}
-	enc.Encode(primary, 10)
+	if err := enc.Encode(primary, 10); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 10; i++ {
 		codewords[10+i] = byte(primary[10+i])
 	}
@@ -133,8 +141,12 @@ func TestDecoderMode4Longer(t *testing.T) {
 			oddBlock[i/2] = int(codewords[20+i])
 		}
 	}
-	enc.Encode(evenBlock, 20)
-	enc.Encode(oddBlock, 20)
+	if err := enc.Encode(evenBlock, 20); err != nil {
+		t.Fatal(err)
+	}
+	if err := enc.Encode(oddBlock, 20); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 40; i++ {
 		if i%2 == 0 {
 			codewords[104+i] = byte(evenBlock[42+i/2])

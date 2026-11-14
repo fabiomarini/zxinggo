@@ -3,8 +3,8 @@ package encoder
 import (
 	"fmt"
 
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // AztecCode holds the result of encoding data into an Aztec barcode.
@@ -116,11 +116,17 @@ func Encode(data []byte, minECCPercent int, userSpecifiedLayers int) (*AztecCode
 	}
 
 	// 3. Generate check words (RS encode data + ECC, return as bit stream with padding).
-	messageBits := generateCheckWords(stuffedBits, totalBitsInLayer, wordSize)
+	messageBits, err := generateCheckWords(stuffedBits, totalBitsInLayer, wordSize)
+	if err != nil {
+		return nil, err
+	}
 
 	// 4. Generate mode message.
 	messageSizeInWords := stuffedBits.Size() / wordSize
-	modeMessage := generateModeMessage(compact, layers, messageSizeInWords)
+	modeMessage, err := generateModeMessage(compact, layers, messageSizeInWords)
+	if err != nil {
+		return nil, err
+	}
 
 	// 5. Allocate symbol and build alignment map.
 	baseMatrixSize := layers*4 + 11
@@ -224,15 +230,16 @@ func stuffBits(bits *bitutil.BitArray, wordSize int) *bitutil.BitArray {
 				word |= 1 << uint(wordSize-1-j)
 			}
 		}
-		if (word & mask) == mask {
+		switch word & mask {
+		case mask:
 			// Upper bits are all 1 -> stuff: write upper bits (LSB=0), back up 1
 			out.AppendBits(uint32(word&mask), wordSize)
 			i-- // net effect with loop increment: advance wordSize-1 bits
-		} else if (word & mask) == 0 {
+		case 0:
 			// Upper bits are all 0 -> stuff: write with LSB=1, back up 1
 			out.AppendBits(uint32(word|1), wordSize)
 			i--
-		} else {
+		default:
 			out.AppendBits(uint32(word), wordSize)
 		}
 	}
@@ -241,14 +248,16 @@ func stuffBits(bits *bitutil.BitArray, wordSize int) *bitutil.BitArray {
 
 // generateCheckWords applies Reed-Solomon encoding to the stuffed bits,
 // producing a bit stream of exactly totalBits length (with leading padding).
-func generateCheckWords(stuffedBits *bitutil.BitArray, totalBits, wordSize int) *bitutil.BitArray {
+func generateCheckWords(stuffedBits *bitutil.BitArray, totalBits, wordSize int) (*bitutil.BitArray, error) {
 	messageSizeInWords := stuffedBits.Size() / wordSize
 	totalWords := totalBits / wordSize
 
 	messageWords := bitsToWords(stuffedBits, wordSize, totalWords)
 
 	rs := reedsolomon.NewEncoder(gfForWordSize(wordSize))
-	rs.Encode(messageWords, totalWords-messageSizeInWords)
+	if err := rs.Encode(messageWords, totalWords-messageSizeInWords); err != nil {
+		return nil, err
+	}
 
 	startPad := totalBits % wordSize
 	out := bitutil.NewBitArray(0)
@@ -256,7 +265,7 @@ func generateCheckWords(stuffedBits *bitutil.BitArray, totalBits, wordSize int) 
 	for _, w := range messageWords {
 		out.AppendBits(uint32(w), wordSize)
 	}
-	return out
+	return out, nil
 }
 
 func bitsToWords(stuffedBits *bitutil.BitArray, wordSize, totalWords int) []int {
@@ -275,7 +284,7 @@ func bitsToWords(stuffedBits *bitutil.BitArray, wordSize, totalWords int) []int 
 }
 
 // generateModeMessage creates the mode message bits.
-func generateModeMessage(compact bool, layers, messageSizeInWords int) *bitutil.BitArray {
+func generateModeMessage(compact bool, layers, messageSizeInWords int) (*bitutil.BitArray, error) {
 	modeMessage := bitutil.NewBitArray(0)
 	if compact {
 		modeMessage.AppendBits(uint32(layers-1), 2)

@@ -3,8 +3,8 @@ package decoder
 import (
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // BoundingBox represents the bounding box around a PDF417 barcode in the image.

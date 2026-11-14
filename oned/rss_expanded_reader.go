@@ -3,17 +3,17 @@ package oned
 import (
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // RSSExpandedReader decodes RSS Expanded barcodes.
 // Ported from Java ZXing RSSExpandedReader.
 type RSSExpandedReader struct {
-	pairs          []expandedPair
-	rows           []expandedRow
-	startEnd       [2]int
-	startFromEven  bool
+	pairs         []expandedPair
+	rows          []expandedRow
+	startEnd      [2]int
+	startFromEven bool
 	// Reusable scratch buffers
 	decodeFinderCounters  [4]int
 	dataCharacterCounters [8]int
@@ -25,6 +25,13 @@ type RSSExpandedReader struct {
 
 func NewRSSExpandedReader() *RSSExpandedReader {
 	return &RSSExpandedReader{}
+}
+
+// Reset clears accumulated pairs and rows between scan passes (zxing-cpp
+// DataBarExpandedReader::reset).
+func (r *RSSExpandedReader) Reset() {
+	r.pairs = r.pairs[:0]
+	r.rows = r.rows[:0]
 }
 
 var rssExpandedSymbolWidest = []int{7, 5, 4, 3, 1}
@@ -80,10 +87,10 @@ var rssExpandedFinderPatternSequences = [][]int{
 }
 
 const (
-	rssExpandedFinderPatternModules          = 15.0
-	rssExpandedDataCharacterModules          = 17.0
-	rssExpandedMaxFinderPatternDistVariance  = 0.1
-	rssExpandedMaxPairs                      = 11
+	rssExpandedFinderPatternModules         = 15.0
+	rssExpandedDataCharacterModules         = 17.0
+	rssExpandedMaxFinderPatternDistVariance = 0.1
+	rssExpandedMaxPairs                     = 11
 )
 
 func (r *RSSExpandedReader) DecodeRow(rowNumber int, row *bitutil.BitArray, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
@@ -620,7 +627,7 @@ func boolToInt(b bool) int {
 }
 
 func isNotA1left(pattern *rssFinderPattern, isOddPattern, leftChar bool) bool {
-	return !(pattern.value == 0 && isOddPattern && leftChar)
+	return pattern.value != 0 || !isOddPattern || !leftChar
 }
 
 func (r *RSSExpandedReader) adjustOddEvenCountsExpanded(numModules int) error {

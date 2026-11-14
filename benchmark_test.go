@@ -8,14 +8,14 @@ import (
 	"os"
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/binarizer"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
 
-	_ "github.com/ericlevine/zxinggo/aztec"
-	_ "github.com/ericlevine/zxinggo/datamatrix"
-	_ "github.com/ericlevine/zxinggo/oned"
-	_ "github.com/ericlevine/zxinggo/pdf417"
-	_ "github.com/ericlevine/zxinggo/qrcode"
+	_ "github.com/fabiomarini/zxinggo/aztec"
+	_ "github.com/fabiomarini/zxinggo/datamatrix"
+	_ "github.com/fabiomarini/zxinggo/oned"
+	_ "github.com/fabiomarini/zxinggo/pdf417"
+	_ "github.com/fabiomarini/zxinggo/qrcode"
 )
 
 func loadTestImage(path string) image.Image {
@@ -23,7 +23,7 @@ func loadTestImage(path string) image.Image {
 	if err != nil {
 		panic("failed to open image: " + err.Error())
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	img, _, err := image.Decode(f)
 	if err != nil {
 		panic("failed to decode image: " + err.Error())

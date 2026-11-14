@@ -1,9 +1,9 @@
 package decoder
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // Decoder decodes Data Matrix ECC-200 barcodes.

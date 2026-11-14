@@ -4,8 +4,10 @@ package oned
 import (
 	"math"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/internal/pattern"
 )
 
 // RowDecoder decodes a single row of a 1D barcode.
@@ -14,72 +16,193 @@ type RowDecoder interface {
 	DecodeRow(rowNumber int, row *bitutil.BitArray, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error)
 }
 
-// DecodeOneD decodes a 1D barcode from an image by scanning rows from the
-// middle outward. It tries each row forward and reversed.
-func DecodeOneD(image *zxinggo.BinaryBitmap, decoder RowDecoder, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
-	width := image.Width()
-	height := image.Height()
-	row := bitutil.NewBitArray(width)
+// PatternRowDecoder decodes from run-length pattern counters, ported from
+// zxing-cpp's RowReader::decodePattern. The view is positioned at the first
+// bar; implementations may advance it and are expected to return quickly.
+type PatternRowDecoder interface {
+	DecodePattern(rowNumber int, view pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error)
+}
 
+// DecodeOneD decodes a 1D barcode from an image, ported from zxing-cpp
+// ODReader::DoDecode: rows are scanned middle-out as run-length pattern
+// rows (global-histogram black point with sharpening), each forward and
+// reversed; then the same is repeated over columns (90° rotation).
+func DecodeOneD(image *zxinggo.BinaryBitmap, decoder RowDecoder, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
 	tryHarder := opts != nil && opts.TryHarder
-	rowStep := height >> 5
+	scanner := binarizer.NewRowScanner(image.Binarizer().LuminanceSource())
+	prd, isPattern := decoder.(PatternRowDecoder)
+
+	for _, rotate := range [2]bool{false, true} {
+		if rotate {
+			if rst, ok := decoder.(zxinggo.Reader); ok {
+				rst.Reset()
+			}
+		}
+		if res := scanOrientation(image, scanner, decoder, prd, isPattern, tryHarder, rotate, opts); res != nil {
+			return res, nil
+		}
+	}
+	return nil, zxinggo.ErrNotFound
+}
+
+// scanOrientation runs one middle-out scan pass, over rows (rotate=false)
+// or bottom-to-top columns (rotate=true, zxing-cpp's rotated(90) view).
+func scanOrientation(image *zxinggo.BinaryBitmap, scanner *binarizer.RowScanner, decoder RowDecoder, prd PatternRowDecoder, isPattern, tryHarder, rotate bool, opts *zxinggo.DecodeOptions) *zxinggo.Result {
+	nLines, lineLen := image.Height(), image.Width()
+	if rotate {
+		nLines, lineLen = lineLen, nLines
+	}
+	rowStep := nLines >> 5
 	if tryHarder {
-		rowStep = height >> 8
+		rowStep = nLines >> 8
 	}
 	if rowStep < 1 {
 		rowStep = 1
 	}
-
 	maxLines := 15
 	if tryHarder {
-		maxLines = height
+		maxLines = nLines
 	}
+	middle := nLines / 2
 
-	middle := height / 2
-	for x := 0; x < maxLines; x++ {
-		rowStepsAboveOrBelow := (x + 1) / 2
-		isAbove := (x & 0x01) == 0
+	var row *bitutil.BitArray
+	for x := range maxLines {
+		steps := (x + 1) / 2
 		rowNumber := middle
-		if isAbove {
-			rowNumber += rowStep * rowStepsAboveOrBelow
+		if x&0x01 == 0 {
+			rowNumber += rowStep * steps
 		} else {
-			rowNumber -= rowStep * rowStepsAboveOrBelow
+			rowNumber -= rowStep * steps
 		}
-		if rowNumber < 0 || rowNumber >= height {
+		if rowNumber < 0 || rowNumber >= nLines {
 			break
 		}
 
+		var counters []int
 		var err error
-		row, err = image.BlackRow(rowNumber, row)
+		if rotate {
+			counters, err = scanner.Column(rowNumber)
+		} else {
+			counters, err = scanner.Row(rowNumber)
+		}
 		if err != nil {
 			continue
 		}
 
-		for attempt := 0; attempt < 2; attempt++ {
+		for attempt := range 2 {
 			if attempt == 1 {
-				row.Reverse()
+				reverseCounters(counters)
 			}
-			result, err := decoder.DecodeRow(rowNumber, row, opts)
-			if err != nil {
+			var res *zxinggo.Result
+			if isPattern {
+				view := pattern.NewView(counters)
+				for {
+					res, err = prd.DecodePattern(rowNumber, view, opts)
+					if err == nil && res != nil {
+						break
+					}
+					// zxing-cpp: retry from the next bar while TryHarder.
+					if !tryHarder || !view.Shift(2-view.Index()%2) {
+						break
+					}
+					view.Extend()
+					if view.Size() == 0 {
+						break
+					}
+				}
+			} else {
+				row = countersToBitArray(counters, row)
+				res, err = decoder.DecodeRow(rowNumber, row, opts)
+			}
+			if err != nil || res == nil {
 				continue
 			}
 			if attempt == 1 {
-				result.PutMetadata(zxinggo.MetadataOrientation, 180)
-				if result.Points != nil && len(result.Points) >= 2 {
-					result.Points[0] = zxinggo.ResultPoint{
-						X: float64(width) - result.Points[0].X - 1,
-						Y: result.Points[0].Y,
-					}
-					result.Points[1] = zxinggo.ResultPoint{
-						X: float64(width) - result.Points[1].X - 1,
-						Y: result.Points[1].Y,
-					}
+				res.PutMetadata(zxinggo.MetadataOrientation, 180)
+				for i, p := range res.Points {
+					res.Points[i] = zxinggo.ResultPoint{X: float64(lineLen) - p.X - 1, Y: p.Y}
 				}
 			}
-			return result, nil
+			if rotate {
+				rotDeg := 270
+				if attempt == 1 {
+					rotDeg = 180
+				}
+				res.PutMetadata(zxinggo.MetadataOrientation, rotDeg)
+				h := image.Height()
+				for i, p := range res.Points {
+					res.Points[i] = zxinggo.ResultPoint{X: float64(rowNumber), Y: float64(h-1) - p.X}
+				}
+			}
+			return res
 		}
 	}
-	return nil, zxinggo.ErrNotFound
+	return nil
+}
+
+// reverseCounters reverses a pattern row in place (zxing-cpp fixupBars'
+// std::reverse; point fixup happens on the result instead).
+func reverseCounters(counters []int) {
+	for i, j := 0, len(counters)-1; i < j; i, j = i+1, j-1 {
+		counters[i], counters[j] = counters[j], counters[i]
+	}
+}
+
+// countersToBitArray expands run-length counters into a BitArray row for
+// readers that still consume bit rows. The counters cover the full line,
+// so the size is stable per pass and the buffer is reused.
+func countersToBitArray(counters []int, row *bitutil.BitArray) *bitutil.BitArray {
+	total := 0
+	for _, c := range counters {
+		total += c
+	}
+	if row == nil || row.Size() != total {
+		row = bitutil.NewBitArray(total)
+	} else {
+		row.Clear()
+	}
+	pos := counters[0]
+	for i := 1; i < len(counters); i += 2 {
+		end := pos + counters[i]
+		for j := pos; j < end; j++ {
+			row.Set(j)
+		}
+		pos = end + counters[i+1]
+	}
+	return row
+}
+
+// bitRowToCounters run-length encodes a bit row into pattern-row counters
+// (leading white run first).
+func bitRowToCounters(row *bitutil.BitArray, buf []int) []int {
+	buf = buf[:0]
+	n := row.Size()
+	i := 0
+	if i < n && row.Get(i) {
+		buf = append(buf, 0)
+	} else {
+		for i < n && !row.Get(i) {
+			i++
+		}
+		buf = append(buf, i)
+	}
+	for i < n {
+		s := i
+		for i < n && row.Get(i) {
+			i++
+		}
+		buf = append(buf, i-s)
+		if i == n {
+			buf = append(buf, 0)
+			break
+		}
+		s = i
+		for i < n && !row.Get(i) {
+			i++
+		}
+		buf = append(buf, i-s)
+	}
+	return buf
 }
 
 // RecordPattern records the widths of successive runs of black and white
@@ -109,7 +232,7 @@ func RecordPattern(row *bitutil.BitArray, start int, counters []int) error {
 		}
 		i++
 	}
-	if !(counterPosition == numCounters || (counterPosition == numCounters-1 && i == end)) {
+	if counterPosition != numCounters && (counterPosition != numCounters-1 || i != end) {
 		return zxinggo.ErrNotFound
 	}
 	return nil

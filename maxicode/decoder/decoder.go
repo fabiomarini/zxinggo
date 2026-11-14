@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // DecoderResult holds the decoded text and metadata.
@@ -178,22 +178,22 @@ func readCodewords(matrix *bitutil.BitMatrix) []byte {
 
 // Special control characters used in MaxiCode character sets.
 const (
-	shiftA     = '\uFFF0'
-	shiftB     = '\uFFF1'
-	shiftC     = '\uFFF2'
-	shiftD     = '\uFFF3'
-	shiftE     = '\uFFF4'
-	twoShiftA  = '\uFFF5'
+	shiftA      = '\uFFF0'
+	shiftB      = '\uFFF1'
+	shiftC      = '\uFFF2'
+	shiftD      = '\uFFF3'
+	shiftE      = '\uFFF4'
+	twoShiftA   = '\uFFF5'
 	threeShiftA = '\uFFF6'
-	latchA     = '\uFFF7'
-	latchB     = '\uFFF8'
-	lockChar   = '\uFFF9'
-	eciChar    = '\uFFFA'
-	nsChar     = '\uFFFB'
-	padChar    = '\uFFFC'
-	fsChar     = '\u001C'
-	gsChar     = '\u001D'
-	rsChar     = '\u001E'
+	latchA      = '\uFFF7'
+	latchB      = '\uFFF8'
+	lockChar    = '\uFFF9'
+	eciChar     = '\uFFFA'
+	nsChar      = '\uFFFB'
+	padChar     = '\uFFFC'
+	fsChar      = '\u001C'
+	gsChar      = '\u001D'
+	rsChar      = '\u001E'
 )
 
 // Byte indices for structured data extraction (modes 2 & 3).
@@ -353,7 +353,7 @@ func getMessage(bytes []byte, start, length int) string {
 			if i+5 < start+length {
 				nsval := (int(bytes[i+1]) << 24) + (int(bytes[i+2]) << 18) +
 					(int(bytes[i+3]) << 12) + (int(bytes[i+4]) << 6) + int(bytes[i+5])
-				sb.WriteString(fmt.Sprintf("%09d", nsval))
+				_, _ = fmt.Fprintf(&sb, "%09d", nsval)
 				i += 5
 			}
 		case lockChar:

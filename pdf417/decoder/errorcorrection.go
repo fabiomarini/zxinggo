@@ -1,7 +1,7 @@
 package decoder
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
+	zxinggo "github.com/fabiomarini/zxinggo"
 )
 
 // ErrorCorrection implements PDF417 error correction using a modular
@@ -40,13 +40,11 @@ func (ec *ErrorCorrection) Decode(received []int, numECCodewords int, erasures [
 	}
 
 	knownErrors := ec.field.One()
-	if erasures != nil {
-		for _, erasure := range erasures {
-			b := ec.field.Exp(len(received) - 1 - erasure)
-			// Add (1 - bx) term:
-			term := NewModulusPoly(ec.field, []int{ec.field.Subtract(0, b), 1})
-			knownErrors = knownErrors.Multiply(term)
-		}
+	for _, erasure := range erasures {
+		b := ec.field.Exp(len(received) - 1 - erasure)
+		// Add (1 - bx) term:
+		term := NewModulusPoly(ec.field, []int{ec.field.Subtract(0, b), 1})
+		knownErrors = knownErrors.Multiply(term)
 	}
 
 	syndrome := NewModulusPoly(ec.field, S)
@@ -63,10 +61,17 @@ func (ec *ErrorCorrection) Decode(received []int, numECCodewords int, erasures [
 	if err != nil {
 		return 0, err
 	}
-	errorMagnitudes := ec.findErrorMagnitudes(omega, sigma, errorLocations)
+	errorMagnitudes, err := ec.findErrorMagnitudes(omega, sigma, errorLocations)
+	if err != nil {
+		return 0, err
+	}
 
 	for i := 0; i < len(errorLocations); i++ {
-		position := len(received) - 1 - ec.field.Log(errorLocations[i])
+		logVal, err := ec.field.Log(errorLocations[i])
+		if err != nil {
+			return 0, err
+		}
+		position := len(received) - 1 - logVal
 		if position < 0 {
 			return 0, zxinggo.ErrChecksum
 		}
@@ -103,7 +108,10 @@ func (ec *ErrorCorrection) runEuclideanAlgorithm(a, b *ModulusPoly, R int) ([2]*
 		r = rLastLast
 		q := ec.field.Zero()
 		denominatorLeadingTerm := rLast.GetCoefficient(rLast.Degree())
-		dltInverse := ec.field.Inverse(denominatorLeadingTerm)
+		dltInverse, err := ec.field.Inverse(denominatorLeadingTerm)
+		if err != nil {
+			return [2]*ModulusPoly{}, err
+		}
 		for r.Degree() >= rLast.Degree() && !r.IsZero() {
 			degreeDiff := r.Degree() - rLast.Degree()
 			scale := ec.field.Multiply(r.GetCoefficient(r.Degree()), dltInverse)
@@ -119,7 +127,10 @@ func (ec *ErrorCorrection) runEuclideanAlgorithm(a, b *ModulusPoly, R int) ([2]*
 		return [2]*ModulusPoly{}, zxinggo.ErrChecksum
 	}
 
-	inverse := ec.field.Inverse(sigmaTildeAtZero)
+	inverse, err := ec.field.Inverse(sigmaTildeAtZero)
+	if err != nil {
+		return [2]*ModulusPoly{}, err
+	}
 	sigma := t.MultiplyScalar(inverse)
 	omega := r.MultiplyScalar(inverse)
 	return [2]*ModulusPoly{sigma, omega}, nil
@@ -133,7 +144,11 @@ func (ec *ErrorCorrection) findErrorLocations(errorLocator *ModulusPoly) ([]int,
 	e := 0
 	for i := 1; i < ec.field.Size() && e < numErrors; i++ {
 		if errorLocator.EvaluateAt(i) == 0 {
-			result[e] = ec.field.Inverse(i)
+			inv, err := ec.field.Inverse(i)
+			if err != nil {
+				return nil, err
+			}
+			result[e] = inv
 			e++
 		}
 	}
@@ -145,10 +160,10 @@ func (ec *ErrorCorrection) findErrorLocations(errorLocator *ModulusPoly) ([]int,
 
 // findErrorMagnitudes uses Forney's formula to compute the error magnitudes
 // given the error evaluator, error locator, and error locations.
-func (ec *ErrorCorrection) findErrorMagnitudes(errorEvaluator, errorLocator *ModulusPoly, errorLocations []int) []int {
+func (ec *ErrorCorrection) findErrorMagnitudes(errorEvaluator, errorLocator *ModulusPoly, errorLocations []int) ([]int, error) {
 	errorLocatorDegree := errorLocator.Degree()
 	if errorLocatorDegree < 1 {
-		return []int{}
+		return []int{}, nil
 	}
 	formalDerivativeCoefficients := make([]int, errorLocatorDegree)
 	for i := 1; i <= errorLocatorDegree; i++ {
@@ -161,10 +176,16 @@ func (ec *ErrorCorrection) findErrorMagnitudes(errorEvaluator, errorLocator *Mod
 	s := len(errorLocations)
 	result := make([]int, s)
 	for i := 0; i < s; i++ {
-		xiInverse := ec.field.Inverse(errorLocations[i])
+		xiInverse, err := ec.field.Inverse(errorLocations[i])
+		if err != nil {
+			return nil, err
+		}
 		numerator := ec.field.Subtract(0, errorEvaluator.EvaluateAt(xiInverse))
-		denominator := ec.field.Inverse(formalDerivative.EvaluateAt(xiInverse))
+		denominator, err := ec.field.Inverse(formalDerivative.EvaluateAt(xiInverse))
+		if err != nil {
+			return nil, err
+		}
 		result[i] = ec.field.Multiply(numerator, denominator)
 	}
-	return result
+	return result, nil
 }

@@ -3,13 +3,13 @@ package zxinggo_test
 import (
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/binarizer"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/binarizer"
 
 	// Import format packages to trigger init() registration.
-	_ "github.com/ericlevine/zxinggo/oned"
-	_ "github.com/ericlevine/zxinggo/pdf417"
-	_ "github.com/ericlevine/zxinggo/qrcode"
+	_ "github.com/fabiomarini/zxinggo/oned"
+	_ "github.com/fabiomarini/zxinggo/pdf417"
+	_ "github.com/fabiomarini/zxinggo/qrcode"
 )
 
 func encodeAndDecode(t *testing.T, content string, format zxinggo.Format, width, height int) string {

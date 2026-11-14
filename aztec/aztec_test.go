@@ -3,9 +3,9 @@ package aztec
 import (
 	"testing"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/aztec/decoder"
-	"github.com/ericlevine/zxinggo/aztec/encoder"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/aztec/decoder"
+	"github.com/fabiomarini/zxinggo/aztec/encoder"
 )
 
 func TestAztecEncoderDecoder(t *testing.T) {

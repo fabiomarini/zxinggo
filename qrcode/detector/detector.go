@@ -5,11 +5,11 @@ import (
 	"math"
 	"sort"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/internal"
-	"github.com/ericlevine/zxinggo/qrcode/decoder"
-	"github.com/ericlevine/zxinggo/transform"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/internal"
+	"github.com/fabiomarini/zxinggo/qrcode/decoder"
+	"github.com/fabiomarini/zxinggo/transform"
 )
 
 const (
@@ -70,9 +70,9 @@ func (ap *AlignmentPattern) combineEstimate(i, j, newModuleSize float64) *Alignm
 // --- FinderPatternFinder ---
 
 type finderPatternFinder struct {
-	image              *bitutil.BitMatrix
-	possibleCenters    []*FinderPattern
-	hasSkipped         bool
+	image                *bitutil.BitMatrix
+	possibleCenters      []*FinderPattern
+	hasSkipped           bool
 	crossCheckStateCount [5]int
 }
 
@@ -588,11 +588,11 @@ func distanceFP(a, b *FinderPattern) float64 {
 // --- AlignmentPatternFinder ---
 
 type alignmentPatternFinder struct {
-	image              *bitutil.BitMatrix
-	possibleCenters    []*AlignmentPattern
-	startX, startY     int
-	width, height      int
-	moduleSize         float64
+	image                *bitutil.BitMatrix
+	possibleCenters      []*AlignmentPattern
+	startX, startY       int
+	width, height        int
+	moduleSize           float64
 	crossCheckStateCount [3]int
 }
 
@@ -602,7 +602,7 @@ func (af *alignmentPatternFinder) find() *AlignmentPattern {
 	maxJ := startX + af.width
 	middleI := af.startY + height/2
 
-	stateCount := [3]int{}
+	var stateCount [3]int
 	for iGen := 0; iGen < height; iGen++ {
 		i := middleI
 		if iGen&1 == 0 {
@@ -719,12 +719,67 @@ func (af *alignmentPatternFinder) crossCheckVertical(startI, centerJ, maxCount, 
 	return math.NaN()
 }
 
+// crossCheckHorizontal refines the horizontal center of a candidate
+// alignment pattern by scanning the row through the vertically confirmed
+// center. Mirrors crossCheckVertical; the Java port only refined the
+// vertical center, leaving a biased horizontal estimate on eroded or
+// slanted patterns (zxing-cpp refines both, see ConcentricFinder.cpp).
+func (af *alignmentPatternFinder) crossCheckHorizontal(startJ, centerI, maxCount, originalStateCountTotal int) float64 {
+	maxJ := af.image.Width()
+	sc := [3]int{}
+
+	j := startJ
+	for j >= 0 && af.image.Get(j, centerI) && sc[1] <= maxCount {
+		sc[1]++
+		j--
+	}
+	if j < 0 || sc[1] > maxCount {
+		return math.NaN()
+	}
+	for j >= 0 && !af.image.Get(j, centerI) && sc[0] <= maxCount {
+		sc[0]++
+		j--
+	}
+	if sc[0] > maxCount {
+		return math.NaN()
+	}
+
+	j = startJ + 1
+	for j < maxJ && af.image.Get(j, centerI) && sc[1] <= maxCount {
+		sc[1]++
+		j++
+	}
+	if j == maxJ || sc[1] > maxCount {
+		return math.NaN()
+	}
+	for j < maxJ && !af.image.Get(j, centerI) && sc[2] <= maxCount {
+		sc[2]++
+		j++
+	}
+	if sc[2] > maxCount {
+		return math.NaN()
+	}
+
+	stateCountTotal := sc[0] + sc[1] + sc[2]
+	if 5*intAbs(stateCountTotal-originalStateCountTotal) >= 2*originalStateCountTotal {
+		return math.NaN()
+	}
+
+	if af.foundPatternCross(sc) {
+		return float64(j-sc[2]) - float64(sc[1])/2.0
+	}
+	return math.NaN()
+}
+
 func (af *alignmentPatternFinder) handlePossibleCenter(stateCount [3]int, i, j int) *AlignmentPattern {
 	stateCountTotal := stateCount[0] + stateCount[1] + stateCount[2]
 	centerJ := float64(j-stateCount[2]) - float64(stateCount[1])/2.0
 	centerI := af.crossCheckVertical(i, int(centerJ), 2*stateCount[1], stateCountTotal)
 	if math.IsNaN(centerI) {
 		return nil
+	}
+	if hj := af.crossCheckHorizontal(int(centerJ), int(centerI), 2*stateCount[1], stateCountTotal); !math.IsNaN(hj) {
+		centerJ = hj
 	}
 	estimatedModuleSize := float64(stateCount[0]+stateCount[1]+stateCount[2]) / 3.0
 	for _, center := range af.possibleCenters {

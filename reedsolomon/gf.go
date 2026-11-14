@@ -16,14 +16,14 @@ type GenericGF struct {
 
 // Pre-defined Galois Fields.
 var (
-	QRCodeField256    = NewGenericGF(0x011D, 256, 0) // x^8 + x^4 + x^3 + x^2 + 1
+	QRCodeField256     = NewGenericGF(0x011D, 256, 0) // x^8 + x^4 + x^3 + x^2 + 1
 	DataMatrixField256 = NewGenericGF(0x012D, 256, 1) // x^8 + x^5 + x^3 + x^2 + 1
-	AztecData12       = NewGenericGF(0x1069, 4096, 1)
-	AztecData10       = NewGenericGF(0x0409, 1024, 1)
-	AztecData8        = DataMatrixField256
-	AztecData6        = NewGenericGF(0x0043, 64, 1)
-	AztecParam        = NewGenericGF(0x0013, 16, 1)
-	MaxiCodeField64   = AztecData6
+	AztecData12        = NewGenericGF(0x1069, 4096, 1)
+	AztecData10        = NewGenericGF(0x0409, 1024, 1)
+	AztecData8         = DataMatrixField256
+	AztecData6         = NewGenericGF(0x0043, 64, 1)
+	AztecParam         = NewGenericGF(0x0013, 16, 1)
+	MaxiCodeField64    = AztecData6
 )
 
 // NewGenericGF creates a GF(size) using the given primitive polynomial.
@@ -84,20 +84,21 @@ func (gf *GenericGF) Exp(a int) int {
 	return gf.expTable[a]
 }
 
-// Log returns log2(a) in this field.
-func (gf *GenericGF) Log(a int) int {
+// Log returns log2(a) in this field. It returns an error when a is 0.
+func (gf *GenericGF) Log(a int) (int, error) {
 	if a == 0 {
-		panic("reedsolomon: log(0)")
+		return 0, ErrReedSolomon
 	}
-	return gf.logTable[a]
+	return gf.logTable[a], nil
 }
 
-// Inverse returns the multiplicative inverse of a.
-func (gf *GenericGF) Inverse(a int) int {
+// Inverse returns the multiplicative inverse of a. It returns an error when
+// a is 0.
+func (gf *GenericGF) Inverse(a int) (int, error) {
 	if a == 0 {
-		panic("reedsolomon: inverse(0)")
+		return 0, ErrReedSolomon
 	}
-	return gf.expTable[gf.size-gf.logTable[a]-1]
+	return gf.expTable[gf.size-gf.logTable[a]-1], nil
 }
 
 // Multiply returns a * b in this field.

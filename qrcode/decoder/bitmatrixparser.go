@@ -1,16 +1,16 @@
 package decoder
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // BitMatrixParser parses a BitMatrix representing a QR code.
 type BitMatrixParser struct {
-	bitMatrix       *bitutil.BitMatrix
-	parsedVersion   *Version
+	bitMatrix        *bitutil.BitMatrix
+	parsedVersion    *Version
 	parsedFormatInfo *FormatInformation
-	mirror          bool
+	mirror           bool
 }
 
 // NewBitMatrixParser creates a new parser for the given BitMatrix.
@@ -128,7 +128,10 @@ func (p *BitMatrixParser) ReadCodewords() ([]byte, error) {
 	// Unmask the data
 	UnmaskBitMatrix(p.bitMatrix, p.bitMatrix.Height(), int(formatInfo.DataMask))
 
-	functionPattern := version.BuildFunctionPattern()
+	functionPattern, err := version.BuildFunctionPattern()
+	if err != nil {
+		return nil, err
+	}
 
 	readingUp := true
 	result := make([]byte, version.TotalCodewords)

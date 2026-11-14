@@ -4,8 +4,8 @@ import (
 	"math"
 	"strings"
 
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 // Codabar is a linear barcode that encodes digits 0-9 and characters -, $, :,
@@ -17,9 +17,9 @@ import (
 // will be. All stripe sizes must be within the window these define, as
 // compared to the average stripe size.
 const (
-	codabarMaxAcceptable   = 2.0
-	codabarPadding         = 1.5
-	codabarMinCharLength   = 3 // start + at least 1 data + stop
+	codabarMaxAcceptable = 2.0
+	codabarPadding       = 1.5
+	codabarMinCharLength = 3 // start + at least 1 data + stop
 )
 
 const codabarAlphabet = "0123456789-$:/.+ABCD"
@@ -165,7 +165,7 @@ func (r *CodabarReader) validatePattern(start int, charOffsets []int) error {
 		for j := 6; j >= 0; j-- {
 			// Even j = bars, while odd j = spaces. Categories 2 and 3 are for
 			// long stripes, while 0 and 1 are for short stripes.
-			category := (j & 1) + (pattern & 1) * 2
+			category := (j & 1) + (pattern&1)*2
 			sizes[category] += r.counters[pos+j]
 			counts[category]++
 			pattern >>= 1
@@ -194,7 +194,7 @@ func (r *CodabarReader) validatePattern(start int, charOffsets []int) error {
 		for j := 6; j >= 0; j-- {
 			// Even j = bars, while odd j = spaces. Categories 2 and 3 are for
 			// long stripes, while 0 and 1 are for short stripes.
-			category := (j & 1) + (pattern & 1) * 2
+			category := (j & 1) + (pattern&1)*2
 			size := float64(r.counters[pos+j])
 			if size < mins[category] || size > maxes[category] {
 				return zxinggo.ErrNotFound

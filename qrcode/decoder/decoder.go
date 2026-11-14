@@ -1,10 +1,10 @@
 package decoder
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
-	"github.com/ericlevine/zxinggo/internal"
-	"github.com/ericlevine/zxinggo/reedsolomon"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
+	"github.com/fabiomarini/zxinggo/internal"
+	"github.com/fabiomarini/zxinggo/reedsolomon"
 )
 
 // Decoder decodes QR codes.

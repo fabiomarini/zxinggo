@@ -1,16 +1,16 @@
 package binarizer
 
 import (
-	zxinggo "github.com/ericlevine/zxinggo"
-	"github.com/ericlevine/zxinggo/bitutil"
+	zxinggo "github.com/fabiomarini/zxinggo"
+	"github.com/fabiomarini/zxinggo/bitutil"
 )
 
 const (
-	blockSizePower  = 3
-	blockSize       = 1 << blockSizePower
-	blockSizeMask   = blockSize - 1
+	blockSizePower   = 3
+	blockSize        = 1 << blockSizePower
+	blockSizeMask    = blockSize - 1
 	minimumDimension = blockSize * 5
-	minDynamicRange = 24
+	minDynamicRange  = 24
 )
 
 // Hybrid implements a local thresholding algorithm. It is more effective than
