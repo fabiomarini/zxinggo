@@ -358,14 +358,6 @@ func (d *Detector) jitterCandidates(topLeft, topRight, bottomLeft *FinderPattern
 	return res
 }
 
-func normalize(x, y float64) (float64, float64) {
-	d := math.Hypot(x, y)
-	if d == 0 {
-		return 0, 0
-	}
-	return x / d, y / d
-}
-
 func transformPoint(t *transform.PerspectiveTransform, x, y float64) fpPoint {
 	p := []float64{x, y}
 	t.TransformPoints(p)

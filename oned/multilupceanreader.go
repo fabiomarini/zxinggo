@@ -334,7 +334,7 @@ func decodeDigit(view pattern.View, txt *string, lgPattern *int) bool {
 		maxAvgVariance        = 0.48
 		maxIndividualVariance = 0.7
 	)
-	bestMatch := -1
+	var bestMatch int
 	if lgPattern != nil {
 		bestMatch = pattern.DecodeDigit(view, upceLAndGPatterns, maxAvgVariance, maxIndividualVariance, false)
 	} else {

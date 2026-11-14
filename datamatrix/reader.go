@@ -69,7 +69,7 @@ func (r *Reader) Decode(image *zxinggo.BinaryBitmap, opts *zxinggo.DecodeOptions
 		}
 	}
 
-	var lastErr error = zxinggo.ErrNotFound
+	var lastErr = zxinggo.ErrNotFound
 	for _, s := range seeds {
 		detResult, err := detector.DetectFrom(matrix, s.x, s.y, s.initSize)
 		if err == nil {

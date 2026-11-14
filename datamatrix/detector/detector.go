@@ -512,10 +512,6 @@ type whiteRectangleDetector struct {
 	upInit    int
 }
 
-func newWhiteRectangleDetector(image *bitutil.BitMatrix) (*whiteRectangleDetector, error) {
-	return newWhiteRectangleDetectorWithInit(image, initSize, image.Width()/2, image.Height()/2)
-}
-
 func newWhiteRectangleDetectorWithInit(image *bitutil.BitMatrix, initSz, x, y int) (*whiteRectangleDetector, error) {
 	w := image.Width()
 	h := image.Height()

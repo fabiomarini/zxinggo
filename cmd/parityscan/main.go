@@ -156,7 +156,7 @@ func decodeOne(path string, formats []zxinggo.Format, base *zxinggo.DecodeOption
 		return "", false
 	}
 	img, _, err := image.Decode(f)
-	f.Close()
+	_ = f.Close()
 	if err != nil {
 		return "", false
 	}
@@ -194,7 +194,7 @@ func dumpRun(root, onlyDir string, tryHarder bool, dumpPath string) {
 			fmt.Fprintln(os.Stderr, ferr)
 			os.Exit(1)
 		}
-		defer dumpF.Close()
+		defer func() { _ = dumpF.Close() }()
 	}
 	var names []string
 	for _, d := range dirs {
@@ -227,9 +227,9 @@ func dumpRun(root, onlyDir string, tryHarder bool, dumpPath string) {
 			text, decoded := decodeOne(img.path, formatsFor(name, spec), spec.opts, tryHarder)
 			if dumpF != nil && !img.segment {
 				if decoded {
-					fmt.Fprintf(dumpF, "%s/%s\t%s\n", name, filepath.Base(img.path), strings.ReplaceAll(text, "\n", `\n`))
+					_, _ = fmt.Fprintf(dumpF, "%s/%s\t%s\n", name, filepath.Base(img.path), strings.ReplaceAll(text, "\n", `\n`))
 				} else {
-					fmt.Fprintf(dumpF, "%s/%s\n", name, filepath.Base(img.path))
+					_, _ = fmt.Fprintf(dumpF, "%s/%s\n", name, filepath.Base(img.path))
 				}
 			}
 			if !img.segment {
@@ -241,7 +241,7 @@ func dumpRun(root, onlyDir string, tryHarder bool, dumpPath string) {
 			base := filepath.Base(img.path)
 			idx := 0
 			if dash := strings.LastIndex(base, "-"); dash > 0 {
-				fmt.Sscanf(base[dash+1:], "%d", &idx)
+				_, _ = fmt.Sscanf(base[dash+1:], "%d", &idx)
 			}
 			groups[img.expected] = append(groups[img.expected], segment{idx, text, decoded})
 		}
@@ -279,7 +279,9 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		pprof.StartCPUProfile(f)
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal(err)
+		}
 		defer pprof.StopCPUProfile()
 	}
 	if !*TH {
