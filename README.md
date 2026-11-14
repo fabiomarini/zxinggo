@@ -231,7 +231,7 @@ Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs
 
 | Format | Go (ns/op) | Java (ns/op) | Ratio | Go allocs/op |
 |--------|----------:|-------------:|------:|-------------:|
-| QR Code | 272,000 | 190,000 | 1.43x slower | 590 |
+| QR Code | 164,000 | 190,000 | **1.16x faster** | 561 |
 | Data Matrix | 8,060 | 12,580 | **1.6x faster** | 210 |
 | PDF417 | 12,280 | 14,460 | **1.18x faster** | 67 |
 | Aztec | 10,250 | 16,250 | **1.6x faster** | 265 |
@@ -240,16 +240,16 @@ Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs
 
 **Decoding:** Go is faster than Java on every format. The luminance fast paths (Gray/RGBA/NRGBA/Paletted/YCbCr/16-bit images converted in a single pass instead of per-pixel `At().RGBA()`) are the dominant factor: they cut QR Code and EAN-13 allocations from ~307,000 to ~100 per operation (3.9x and 10.1x faster), and the Paletted/YCbCr LUTs speed the palette-encoded corpus images up to 10.7x (Code 128). Every fast path is verified byte-for-byte identical to the generic `At()`/`RGBA()` path by `TestLuminanceFastPathsMatchGeneric`, so decode results are unchanged (977/1124 blackbox).
 
-**Encoding:** Go wins 5 of 6 formats (1.2-1.7x faster), with Code 128, Aztec, Data Matrix, and EAN-13 encoding 1.6x faster than Java. QR Code encoding is the exception (Java 1.43x faster).
+**Encoding:** Go is faster than Java on all 6 formats (1.16-1.66x). QR Code encoding was reworked on top of the Java port: flat single-allocation `ByteMatrix` with row-slice iteration in the mask-penalty rules, direct indexing in data embedding, and word-level fills in `BitMatrix.SetRegion` (1.7x over the previous row-of-slices implementation). The rewritten kernels are verified bit-identical to the original semantics by `TestPenaltyRewriteMatchesReference` and `TestSetRegionWordFillMatchesPerBit`.
 
 ## By the Numbers
 
 | Metric | Value |
 |--------|-------|
-| Go source lines | 27,399 (production) + 3,425 (tests) |
+| Go source lines | 27,453 (production) + 3,585 (tests) |
 | Java ZXing source lines | 42,234 (core library) |
 | Go / Java ratio | ~65% the code size |
-| Source files | 127 production, 17 test |
+| Source files | 127 production, 19 test |
 | Packages | 34 |
 | External dependencies | 1 (`golang.org/x/text`) |
 | Test images | 1,124 images across 50 test directories |

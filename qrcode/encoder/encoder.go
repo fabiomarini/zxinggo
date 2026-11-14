@@ -16,40 +16,34 @@ const numMaskPatterns = 8
 
 // ByteMatrix is a simple 2D byte matrix for QR code encoding.
 type ByteMatrix struct {
-	Data          [][]byte
+	Data          []byte
 	Width, Height int
 }
 
 // NewByteMatrix creates a new ByteMatrix.
 func NewByteMatrix(width, height int) *ByteMatrix {
-	data := make([][]byte, height)
-	for i := range data {
-		data[i] = make([]byte, width)
-	}
-	return &ByteMatrix{Data: data, Width: width, Height: height}
+	return &ByteMatrix{Data: make([]byte, width*height), Width: width, Height: height}
 }
 
 // Get returns the value at (x, y).
-func (bm *ByteMatrix) Get(x, y int) byte { return bm.Data[y][x] }
+func (bm *ByteMatrix) Get(x, y int) byte { return bm.Data[y*bm.Width+x] }
 
 // Set sets the value at (x, y).
-func (bm *ByteMatrix) Set(x, y int, value byte) { bm.Data[y][x] = value }
+func (bm *ByteMatrix) Set(x, y int, value byte) { bm.Data[y*bm.Width+x] = value }
 
 // SetBool sets the value at (x, y) as 1 (true) or 0 (false).
 func (bm *ByteMatrix) SetBool(x, y int, value bool) {
 	if value {
-		bm.Data[y][x] = 1
+		bm.Data[y*bm.Width+x] = 1
 	} else {
-		bm.Data[y][x] = 0
+		bm.Data[y*bm.Width+x] = 0
 	}
 }
 
 // Clear fills the matrix with the given value.
 func (bm *ByteMatrix) Clear(value byte) {
-	for y := range bm.Data {
-		for x := range bm.Data[y] {
-			bm.Data[y][x] = value
-		}
+	for i := range bm.Data {
+		bm.Data[i] = value
 	}
 }
 
@@ -413,27 +407,43 @@ func calculateMaskPenalty(matrix *ByteMatrix) int {
 
 // Mask penalty rule 1: penalize runs of 5+ same-color modules
 func applyMaskPenaltyRule1(matrix *ByteMatrix) int {
-	return applyMaskPenaltyRule1Internal(matrix, true) + applyMaskPenaltyRule1Internal(matrix, false)
+	return applyMaskPenaltyRule1Horizontal(matrix) + applyMaskPenaltyRule1Vertical(matrix)
 }
 
-func applyMaskPenaltyRule1Internal(matrix *ByteMatrix, isHorizontal bool) int {
+func applyMaskPenaltyRule1Horizontal(matrix *ByteMatrix) int {
 	penalty := 0
-	iLimit := matrix.Height
-	jLimit := matrix.Width
-	if !isHorizontal {
-		iLimit = matrix.Width
-		jLimit = matrix.Height
-	}
-	for i := 0; i < iLimit; i++ {
+	w := matrix.Width
+	for y := 0; y < matrix.Height; y++ {
+		row := matrix.Data[y*w : (y+1)*w]
 		numSameBitCells := 0
 		prevBit := byte(255) // invalid
-		for j := 0; j < jLimit; j++ {
-			var bit byte
-			if isHorizontal {
-				bit = matrix.Get(j, i)
+		for _, bit := range row {
+			if bit == prevBit {
+				numSameBitCells++
 			} else {
-				bit = matrix.Get(i, j)
+				if numSameBitCells >= 5 {
+					penalty += 3 + (numSameBitCells - 5)
+				}
+				numSameBitCells = 1
+				prevBit = bit
 			}
+		}
+		if numSameBitCells >= 5 {
+			penalty += 3 + (numSameBitCells - 5)
+		}
+	}
+	return penalty
+}
+
+func applyMaskPenaltyRule1Vertical(matrix *ByteMatrix) int {
+	penalty := 0
+	data := matrix.Data
+	w := matrix.Width
+	for x := 0; x < w; x++ {
+		numSameBitCells := 0
+		prevBit := byte(255) // invalid
+		for y, off := 0, x; y < matrix.Height; y, off = y+1, off+w {
+			bit := data[off]
 			if bit == prevBit {
 				numSameBitCells++
 			} else {
@@ -454,10 +464,13 @@ func applyMaskPenaltyRule1Internal(matrix *ByteMatrix, isHorizontal bool) int {
 // Mask penalty rule 2: penalize 2x2 blocks of same color
 func applyMaskPenaltyRule2(matrix *ByteMatrix) int {
 	penalty := 0
+	w := matrix.Width
 	for y := 0; y < matrix.Height-1; y++ {
-		for x := 0; x < matrix.Width-1; x++ {
-			value := matrix.Get(x, y)
-			if value == matrix.Get(x+1, y) && value == matrix.Get(x, y+1) && value == matrix.Get(x+1, y+1) {
+		// two adjacent rows in one slice; row[x+w] is (x, y+1)
+		row := matrix.Data[y*w : (y+2)*w]
+		for x := 0; x < w-1; x++ {
+			value := row[x]
+			if value == row[x+1] && value == row[x+w] && value == row[x+w+1] {
 				penalty += 3
 			}
 		}
@@ -468,36 +481,40 @@ func applyMaskPenaltyRule2(matrix *ByteMatrix) int {
 // Mask penalty rule 3: penalize finder-like patterns
 func applyMaskPenaltyRule3(matrix *ByteMatrix) int {
 	penalty := 0
-	for y := 0; y < matrix.Height; y++ {
-		for x := 0; x < matrix.Width; x++ {
-			// Check horizontal
-			if x+6 < matrix.Width {
-				if matrix.Get(x, y) == 1 && matrix.Get(x+1, y) == 0 &&
-					matrix.Get(x+2, y) == 1 && matrix.Get(x+3, y) == 1 &&
-					matrix.Get(x+4, y) == 1 && matrix.Get(x+5, y) == 0 &&
-					matrix.Get(x+6, y) == 1 {
-					leadingWhite := x+10 < matrix.Width && matrix.Get(x+7, y) == 0 && matrix.Get(x+8, y) == 0 &&
-						matrix.Get(x+9, y) == 0 && matrix.Get(x+10, y) == 0
-					trailingWhite := x >= 4 && matrix.Get(x-1, y) == 0 && matrix.Get(x-2, y) == 0 &&
-						matrix.Get(x-3, y) == 0 && matrix.Get(x-4, y) == 0
-					if leadingWhite || trailingWhite {
-						penalty += 40
-					}
+	w, h := matrix.Width, matrix.Height
+	data := matrix.Data
+	// horizontal: scan rows directly
+	for y := 0; y < h; y++ {
+		row := data[y*w : (y+1)*w]
+		for x := 0; x+6 < w; x++ {
+			if row[x] == 1 && row[x+1] == 0 &&
+				row[x+2] == 1 && row[x+3] == 1 &&
+				row[x+4] == 1 && row[x+5] == 0 &&
+				row[x+6] == 1 {
+				leadingWhite := x+10 < w && row[x+7] == 0 && row[x+8] == 0 &&
+					row[x+9] == 0 && row[x+10] == 0
+				trailingWhite := x >= 4 && row[x-1] == 0 && row[x-2] == 0 &&
+					row[x-3] == 0 && row[x-4] == 0
+				if leadingWhite || trailingWhite {
+					penalty += 40
 				}
 			}
-			// Check vertical
-			if y+6 < matrix.Height {
-				if matrix.Get(x, y) == 1 && matrix.Get(x, y+1) == 0 &&
-					matrix.Get(x, y+2) == 1 && matrix.Get(x, y+3) == 1 &&
-					matrix.Get(x, y+4) == 1 && matrix.Get(x, y+5) == 0 &&
-					matrix.Get(x, y+6) == 1 {
-					leadingWhite := y+10 < matrix.Height && matrix.Get(x, y+7) == 0 && matrix.Get(x, y+8) == 0 &&
-						matrix.Get(x, y+9) == 0 && matrix.Get(x, y+10) == 0
-					trailingWhite := y >= 4 && matrix.Get(x, y-1) == 0 && matrix.Get(x, y-2) == 0 &&
-						matrix.Get(x, y-3) == 0 && matrix.Get(x, y-4) == 0
-					if leadingWhite || trailingWhite {
-						penalty += 40
-					}
+		}
+	}
+	// vertical: stride one column with a single flat index
+	for x := 0; x < w; x++ {
+		for y := 0; y+6 < h; y++ {
+			i := y*w + x
+			if data[i] == 1 && data[i+w] == 0 &&
+				data[i+2*w] == 1 && data[i+3*w] == 1 &&
+				data[i+4*w] == 1 && data[i+5*w] == 0 &&
+				data[i+6*w] == 1 {
+				leadingWhite := y+10 < h && data[i+7*w] == 0 && data[i+8*w] == 0 &&
+					data[i+9*w] == 0 && data[i+10*w] == 0
+				trailingWhite := y >= 4 && data[i-w] == 0 && data[i-2*w] == 0 &&
+					data[i-3*w] == 0 && data[i-4*w] == 0
+				if leadingWhite || trailingWhite {
+					penalty += 40
 				}
 			}
 		}
@@ -508,14 +525,12 @@ func applyMaskPenaltyRule3(matrix *ByteMatrix) int {
 // Mask penalty rule 4: penalize deviation from 50% dark modules
 func applyMaskPenaltyRule4(matrix *ByteMatrix) int {
 	numDarkCells := 0
-	total := matrix.Height * matrix.Width
-	for y := 0; y < matrix.Height; y++ {
-		for x := 0; x < matrix.Width; x++ {
-			if matrix.Get(x, y) == 1 {
-				numDarkCells++
-			}
+	for _, v := range matrix.Data {
+		if v == 1 {
+			numDarkCells++
 		}
 	}
+	total := matrix.Height * matrix.Width
 	fivePercentVariances := abs(numDarkCells*2-total) * 10 / total
 	return fivePercentVariances * 10
 }
@@ -695,33 +710,38 @@ func maybeEmbedVersionInfo(version *decoder.Version, matrix *ByteMatrix) {
 func embedDataBits(dataBits *bitutil.BitArray, maskPattern int, matrix *ByteMatrix) {
 	bitIndex := 0
 	dimension := matrix.Height
+	w := matrix.Width
+	data := matrix.Data
+	maskFn := decoder.DataMasks[maskPattern]
+	numBits := dataBits.Size()
 
 	for j := dimension - 1; j > 0; j -= 2 {
 		if j == 6 {
 			j-- // skip timing column
 		}
+		upward := (((dimension - 1 - j) / 2) & 1) == 0
 		for count := 0; count < dimension; count++ {
-			upward := (((dimension - 1 - j) / 2) & 1) == 0
 			i := count
 			if upward {
 				i = dimension - 1 - count
 			}
+			base := i * w
 			for col := 0; col < 2; col++ {
 				x := j - col
-				if matrix.Get(x, i) == 0xFF { // empty cell
+				if data[base+x] == 0xFF { // empty cell
 					var bit bool
-					if bitIndex < dataBits.Size() {
+					if bitIndex < numBits {
 						bit = dataBits.Get(bitIndex)
 						bitIndex++
 					}
 					// Apply mask
-					if decoder.DataMasks[maskPattern](i, x) {
+					if maskFn(i, x) {
 						bit = !bit
 					}
 					if bit {
-						matrix.Set(x, i, 1)
+						data[base+x] = 1
 					} else {
-						matrix.Set(x, i, 0)
+						data[base+x] = 0
 					}
 				}
 			}
@@ -773,10 +793,12 @@ func RenderResult(code *QRCode, width, height, quietZone int) (*bitutil.BitMatri
 
 	output := bitutil.NewBitMatrixWithSize(outputWidth, outputHeight)
 
+	w := inputWidth
 	for inputY := 0; inputY < inputHeight; inputY++ {
+		row := input.Data[inputY*w : (inputY+1)*w]
 		outputY := topPadding + inputY*multiple
-		for inputX := 0; inputX < inputWidth; inputX++ {
-			if input.Get(inputX, inputY) == 1 {
+		for inputX := 0; inputX < w; inputX++ {
+			if row[inputX] == 1 {
 				outputX := leftPadding + inputX*multiple
 				if err := output.SetRegion(outputX, outputY, multiple, multiple); err != nil {
 					return nil, err

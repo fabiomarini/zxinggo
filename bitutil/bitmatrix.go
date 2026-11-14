@@ -110,11 +110,22 @@ func (bm *BitMatrix) SetRegion(left, top, width, height int) error {
 	if bottom > bm.height || right > bm.width {
 		return fmt.Errorf("bitmatrix: region must fit inside the matrix")
 	}
+	// Fill whole words at once; only the first and last word need masking.
+	firstWord := left >> 5
+	lastWord := (right - 1) >> 5
+	firstMask := ^uint32(0) << uint(left&0x1f)
+	lastMask := ^uint32(0) >> uint(31-((right-1)&0x1f))
 	for y := top; y < bottom; y++ {
 		offset := y * bm.rowSize
-		for x := left; x < right; x++ {
-			bm.data[offset+x/32] |= 1 << uint(x&0x1f)
+		if firstWord == lastWord {
+			bm.data[offset+firstWord] |= firstMask & lastMask
+			continue
 		}
+		bm.data[offset+firstWord] |= firstMask
+		for xw := firstWord + 1; xw < lastWord; xw++ {
+			bm.data[offset+xw] = ^uint32(0)
+		}
+		bm.data[offset+lastWord] |= lastMask
 	}
 	return nil
 }
