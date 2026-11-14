@@ -214,33 +214,33 @@ go test ./...
 
 ## Performance: Go vs Java ZXing
 
-Benchmarked on Apple M4, arm64, macOS. Go benchmarks use `testing.B` (3 runs, median). Java benchmarks use OpenJDK 25.0.2 with 100 warmup + 1,000 timed iterations (median). Both measure the full decode pipeline: Image → LuminanceSource → HybridBinarizer → BinaryBitmap → Decode, with format-specific hints.
+Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs, median). Java benchmarks use OpenJDK 21.0.9 with ZXing core 3.5.3, 100 warmup + 1,000 timed iterations (median). Both measure the full decode pipeline: Image → LuminanceSource → HybridBinarizer → BinaryBitmap → Decode, with format-specific hints. **Both libraries were measured on the same machine**, so the ratios are apples-to-apples.
 
 ### Decode
 
 | Format | Go (ns/op) | Java (ns/op) | Ratio | Go allocs/op |
 |--------|----------:|-------------:|------:|-------------:|
-| QR Code | 3,812,000 | 3,248,000 | 1.17x slower | 307,328 |
-| Data Matrix | 176,000 | 184,000 | **0.96x (faster)** | 84 |
-| PDF417 | 164,000 | 152,000 | 1.08x slower | 1,195 |
-| Aztec | 350,000 | 361,000 | **0.97x (faster)** | 73 |
-| Code 128 | 581,000 | 633,000 | **0.92x (faster)** | 29 |
-| EAN-13 | 3,266,000 | 2,845,000 | 1.15x slower | 307,233 |
+| QR Code | 1,220,000 | 4,800,000 | **3.9x faster** | 139 |
+| Data Matrix | 296,000 | 261,000 | 1.13x slower | 85 |
+| PDF417 | 234,000 | 233,000 | ~1.0x (same) | 1,195 |
+| Aztec | 786,000 | 514,000 | 1.53x slower | 1,323 |
+| Code 128 | 870,000 | 951,000 | **1.09x (faster)** | 48 |
+| EAN-13 | 437,000 | 4,420,000 | **10.1x faster** | 80 |
 
 ### Encode
 
 | Format | Go (ns/op) | Java (ns/op) | Ratio | Go allocs/op |
 |--------|----------:|-------------:|------:|-------------:|
-| QR Code | 121,000 | 80,000 | 1.51x slower | 590 |
-| Data Matrix | 6,080 | 12,700 | **2.1x faster** | 210 |
-| PDF417 | 9,420 | 9,170 | ~1.0x (same) | 67 |
-| Aztec | 7,680 | 19,600 | **2.6x faster** | 265 |
-| Code 128 | 7,390 | 9,250 | **1.25x faster** | 8 |
-| EAN-13 | 6,080 | 7,460 | **1.23x faster** | 3 |
+| QR Code | 272,000 | 190,000 | 1.43x slower | 590 |
+| Data Matrix | 8,060 | 12,580 | **1.6x faster** | 210 |
+| PDF417 | 12,280 | 14,460 | **1.18x faster** | 67 |
+| Aztec | 10,250 | 16,250 | **1.6x faster** | 265 |
+| Code 128 | 8,120 | 13,500 | **1.66x faster** | 7 |
+| EAN-13 | 6,660 | 10,880 | **1.63x faster** | 3 |
 
-**Decoding:** Go is within ~1x of Java across all formats. Go wins on Data Matrix, Aztec, and Code 128. Java wins on QR Code and EAN-13, where Go's ~307K allocations per operation are the dominant bottleneck.
+**Decoding:** The luminance fast paths (Gray/RGBA/NRGBA/16-bit images converted in a single pass instead of per-pixel `At().RGBA()`) cut QR Code and EAN-13 decode allocations from ~307,000 to ~100 per operation, making Go **3.9x** and **10.1x** faster than Java on those formats respectively. Code 128 is slightly faster and PDF417 is on par. Data Matrix and Aztec decode are now ~1.1-1.5x slower than Java - a deliberate trade-off: the ported zxing-cpp detectors do more work per image to reach far higher real-world decode rates (see [PARITY.md](PARITY.md)).
 
-**Encoding:** Go wins 4 of 6 formats, with Data Matrix and Aztec encoding 2-2.5x faster than Java. QR Code encoding is the notable exception (Java 1.5x faster).
+**Encoding:** Go wins 5 of 6 formats (1.2-1.7x faster), with Code 128, Aztec, Data Matrix, and EAN-13 encoding 1.6x faster than Java. QR Code encoding is the exception (Java 1.43x faster).
 
 ## By the Numbers
 
