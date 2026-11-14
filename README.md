@@ -238,7 +238,7 @@ Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs
 | Code 128 | 8,120 | 13,500 | **1.66x faster** | 7 |
 | EAN-13 | 6,660 | 10,880 | **1.63x faster** | 3 |
 
-**Decoding:** Go is faster than Java on every format. The luminance fast paths (Gray/RGBA/NRGBA/Paletted/YCbCr/16-bit images converted in a single pass instead of per-pixel `At().RGBA()`) are the dominant factor: they cut QR Code and EAN-13 allocations from ~307,000 to ~100 per operation (3.9x and 10.1x faster), and the Paletted/YCbCr LUTs speed the palette-encoded corpus images up to 10.7x (Code 128). Every fast path is verified byte-for-byte identical to the generic `At()`/`RGBA()` path by `TestLuminanceFastPathsMatchGeneric`, so decode results are unchanged (975/1124 blackbox).
+**Decoding:** Go is faster than Java on every format. The luminance fast paths (Gray/RGBA/NRGBA/Paletted/YCbCr/16-bit images converted in a single pass instead of per-pixel `At().RGBA()`) are the dominant factor: they cut QR Code and EAN-13 allocations from ~307,000 to ~100 per operation (3.9x and 10.1x faster), and the Paletted/YCbCr LUTs speed the palette-encoded corpus images up to 10.7x (Code 128). Every fast path is verified byte-for-byte identical to the generic `At()`/`RGBA()` path by `TestLuminanceFastPathsMatchGeneric`, so decode results are unchanged (977/1124 blackbox).
 
 **Encoding:** Go wins 5 of 6 formats (1.2-1.7x faster), with Code 128, Aztec, Data Matrix, and EAN-13 encoding 1.6x faster than Java. QR Code encoding is the exception (Java 1.43x faster).
 
