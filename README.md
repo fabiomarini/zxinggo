@@ -220,12 +220,12 @@ Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs
 
 | Format | Go (ns/op) | Java (ns/op) | Ratio | Go allocs/op |
 |--------|----------:|-------------:|------:|-------------:|
-| QR Code | 1,220,000 | 4,800,000 | **3.9x faster** | 139 |
-| Data Matrix | 296,000 | 261,000 | 1.13x slower | 85 |
-| PDF417 | 234,000 | 233,000 | ~1.0x (same) | 1,195 |
-| Aztec | 786,000 | 514,000 | 1.53x slower | 1,323 |
-| Code 128 | 870,000 | 951,000 | **1.09x (faster)** | 48 |
-| EAN-13 | 437,000 | 4,420,000 | **10.1x faster** | 80 |
+| QR Code | 1,219,000 | 4,800,000 | **3.9x faster** | 139 |
+| Data Matrix | 133,000 | 261,000 | **2.0x faster** | 85 |
+| PDF417 | 135,000 | 233,000 | **1.7x faster** | 1,195 |
+| Aztec | 480,000 | 514,000 | **1.07x faster** | 1,323 |
+| Code 128 | 89,000 | 951,000 | **10.7x faster** | 48 |
+| EAN-13 | 438,000 | 4,420,000 | **10.1x faster** | 80 |
 
 ### Encode
 
@@ -238,7 +238,7 @@ Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs
 | Code 128 | 8,120 | 13,500 | **1.66x faster** | 7 |
 | EAN-13 | 6,660 | 10,880 | **1.63x faster** | 3 |
 
-**Decoding:** The luminance fast paths (Gray/RGBA/NRGBA/16-bit images converted in a single pass instead of per-pixel `At().RGBA()`) cut QR Code and EAN-13 decode allocations from ~307,000 to ~100 per operation, making Go **3.9x** and **10.1x** faster than Java on those formats respectively. Code 128 is slightly faster and PDF417 is on par. Data Matrix and Aztec decode are now ~1.1-1.5x slower than Java - a deliberate trade-off: the ported zxing-cpp detectors do more work per image to reach far higher real-world decode rates (see [PARITY.md](PARITY.md)).
+**Decoding:** Go is faster than Java on every format. The luminance fast paths (Gray/RGBA/NRGBA/Paletted/YCbCr/16-bit images converted in a single pass instead of per-pixel `At().RGBA()`) are the dominant factor: they cut QR Code and EAN-13 allocations from ~307,000 to ~100 per operation (3.9x and 10.1x faster), and the Paletted/YCbCr LUTs speed the palette-encoded corpus images up to 10.7x (Code 128). Every fast path is verified byte-for-byte identical to the generic `At()`/`RGBA()` path by `TestLuminanceFastPathsMatchGeneric`, so decode results are unchanged (975/1124 blackbox).
 
 **Encoding:** Go wins 5 of 6 formats (1.2-1.7x faster), with Code 128, Aztec, Data Matrix, and EAN-13 encoding 1.6x faster than Java. QR Code encoding is the exception (Java 1.43x faster).
 

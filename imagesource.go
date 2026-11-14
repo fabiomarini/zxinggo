@@ -91,11 +91,51 @@ func NewImageLuminanceSource(img image.Image) *ImageLuminanceSource {
 				} else {
 					// color.NRGBA64.RGBA() premultiplies: v*a/0xffff on 16-bit values.
 					a16 := uint32(row[x*8+6])<<8 | uint32(row[x*8+7])
-					r := (uint32(row[x*8])<<8|uint32(row[x*8+1]))*a16/0xffff>>8
-					g := (uint32(row[x*8+2])<<8|uint32(row[x*8+3]))*a16/0xffff>>8
-					b := (uint32(row[x*8+4])<<8|uint32(row[x*8+5]))*a16/0xffff>>8
+					r := (uint32(row[x*8])<<8 | uint32(row[x*8+1])) * a16 / 0xffff >> 8
+					g := (uint32(row[x*8+2])<<8 | uint32(row[x*8+3])) * a16 / 0xffff >> 8
+					b := (uint32(row[x*8+4])<<8 | uint32(row[x*8+5])) * a16 / 0xffff >> 8
 					dst[x] = byte((306*int(r) + 601*int(g) + 117*int(b) + 0x200) >> 10)
 				}
+			}
+		}
+	case *image.Paletted:
+		// At() returns Palette.Color(Pix[i]); a LUT over the palette is
+		// bit-identical to the generic At/RGBA path for every index.
+		var lut [256]byte
+		for i := range lut {
+			var c color.Color
+			if i < len(src.Palette) {
+				c = src.Palette[i]
+			} else {
+				c = color.Black // out-of-range indices read as black
+			}
+			r, g, b, a := c.RGBA()
+			if a == 0 {
+				lut[i] = 0xFF
+			} else {
+				lut[i] = byte((306*(r>>8) + 601*(g>>8) + 117*(b>>8) + 0x200) >> 10)
+			}
+		}
+		for y := range h {
+			pix := src.Pix[(y+bounds.Min.Y)*src.Stride+bounds.Min.X:]
+			dst := luminances[y*w : (y+1)*w]
+			for x := range w {
+				dst[x] = lut[pix[x]]
+			}
+		}
+	case *image.YCbCr:
+		// JPEG photos decode to YCbCr. color.YCbCr.RGBA() applies a fixed
+		// integer ycbcrToRGB; reproduce it (and use the type's own subsample
+		// indexing) so results match the generic At/RGBA path exactly.
+		for y := 0; y < h; y++ {
+			yi := (y+bounds.Min.Y)*src.YStride + bounds.Min.X
+			dst := luminances[y*w : (y+1)*w]
+			for x := 0; x < w; x++ {
+				co := src.COffset(x+bounds.Min.X, y+bounds.Min.Y)
+				cb := src.Cb[co]
+				cr := src.Cr[co]
+				r, g, b := ycbcrToRGB16(src.Y[yi+x], cb, cr)
+				dst[x] = byte((306*(r>>8) + 601*(g>>8) + 117*(b>>8) + 0x200) >> 10)
 			}
 		}
 	default:
@@ -120,6 +160,35 @@ func NewImageLuminanceSource(img image.Image) *ImageLuminanceSource {
 		width:      w,
 		height:     h,
 	}
+}
+
+// ycbcrToRGB16 replicates image/color's YCbCr.RGBA() conversion exactly
+// (same coefficients, rounding and 16-bit clamping), returning premultiplied
+// 16-bit components. Used by the YCbCr luminance fast path; the equivalence
+// test pins it against the generic At/RGBA path on the current toolchain.
+func ycbcrToRGB16(y, cb, cr uint8) (uint32, uint32, uint32) {
+	yy1 := int32(y) * 0x10101
+	cb1 := int32(cb) - 128
+	cr1 := int32(cr) - 128
+	r := yy1 + 91881*cr1
+	if uint32(r)&0xff000000 == 0 {
+		r >>= 8
+	} else {
+		r = ^(r >> 31) & 0xffff
+	}
+	g := yy1 - 22554*cb1 - 46802*cr1
+	if uint32(g)&0xff000000 == 0 {
+		g >>= 8
+	} else {
+		g = ^(g >> 31) & 0xffff
+	}
+	b := yy1 + 116130*cb1
+	if uint32(b)&0xff000000 == 0 {
+		b >>= 8
+	} else {
+		b = ^(b >> 31) & 0xffff
+	}
+	return uint32(r), uint32(g), uint32(b)
 }
 
 // NewGrayImageLuminanceSource creates a LuminanceSource from a *image.Gray,

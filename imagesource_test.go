@@ -24,6 +24,11 @@ func TestLuminanceFastPathsMatchGeneric(t *testing.T) {
 		{"Gray16", mkGray16ForLuma()},
 		{"RGBA64", mkRGBA64ForLuma()},
 		{"NRGBA64", mkNRGBA64ForLuma()},
+		{"Paletted", mkPalettedForLuma()},
+		{"YCbCr444", mkYCbCrForLuma(image.YCbCrSubsampleRatio444)},
+		{"YCbCr422", mkYCbCrForLuma(image.YCbCrSubsampleRatio422)},
+		{"YCbCr420", mkYCbCrForLuma(image.YCbCrSubsampleRatio420)},
+		{"YCbCr411", mkYCbCrForLuma(image.YCbCrSubsampleRatio411)},
 	} {
 		fast := zxinggo.NewImageLuminanceSource(tc.img).Matrix()
 		ref := zxinggo.NewImageLuminanceSource(genericImage{tc.img}).Matrix()
@@ -95,6 +100,39 @@ func mkNRGBA64ForLuma() image.Image {
 		for x := range 8 {
 			m.Set(x, y, color.NRGBA64{uint16(x * 8000), uint16(y * 8000), uint16(x * 4000), uint16(x * 8000)})
 		}
+	}
+	return m
+}
+
+func mkPalettedForLuma() image.Image {
+	pal := color.Palette{
+		color.NRGBA{0, 0, 0, 0}, // fully transparent -> white
+		color.Black,
+		color.White,
+		color.NRGBA{200, 30, 90, 255},
+		color.Gray{Y: 123},
+		color.NRGBA{10, 200, 40, 128}, // partial alpha premultiplication
+	}
+	m := image.NewPaletted(image.Rect(0, 0, 8, 8), pal)
+	for y := range 8 {
+		for x := range 8 {
+			m.SetColorIndex(x, y, byte((x*3+y)%len(pal)))
+		}
+	}
+	return m
+}
+
+func mkYCbCrForLuma(ratio image.YCbCrSubsampleRatio) image.Image {
+	w, h := 9, 7 // odd sizes exercise subsample rounding
+	m := image.NewYCbCr(image.Rect(0, 0, w, h), ratio)
+	for i := range m.Y {
+		m.Y[i] = uint8(i * 7)
+	}
+	for i := range m.Cb {
+		m.Cb[i] = uint8(30 + i*11)
+	}
+	for i := range m.Cr {
+		m.Cr[i] = uint8(250 - i*13)
 	}
 	return m
 }
