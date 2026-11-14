@@ -1,5 +1,7 @@
 package decoder
 
+import "sort"
+
 // BarcodeValue tracks occurrences of codeword values and determines which
 // value(s) have the highest confidence (most occurrences).
 type BarcodeValue struct {
@@ -31,6 +33,13 @@ func (bv *BarcodeValue) Value() []int {
 			result = append(result, key)
 		}
 	}
+	// Iterate tied values in ascending order. The map iteration order is
+	// randomized in Go, but the ambiguity resolver (createDecoderResultFromAmbiguousValues)
+	// enumerates combinations as an odometer over these slices within a bounded
+	// number of tries, so the order is observable. Ascending order matches the
+	// reference implementation (which stores counts in a value-indexed array)
+	// and makes decoding deterministic.
+	sort.Ints(result)
 	return result
 }
 

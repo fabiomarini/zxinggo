@@ -177,62 +177,72 @@ func findRowsWithPattern(matrix *bitutil.BitMatrix,
 	pattern []int) []*zxinggo.ResultPoint {
 
 	result := make([]*zxinggo.ResultPoint, 4)
-	found := false
 	counters := make([]int, len(pattern))
 
-	for ; startRow < height; startRow += rowStep {
-		loc := findGuardPattern(matrix, startColumn, startRow, width, pattern, counters)
-		if loc != nil {
-			for startRow > 0 {
-				previousRowLoc := findGuardPattern(matrix, startColumn, startRow-1, width, pattern, counters)
-				if previousRowLoc != nil {
-					startRow--
-					loc = previousRowLoc
-				} else {
-					break
-				}
-			}
-			result[0] = &zxinggo.ResultPoint{X: float64(loc[0]), Y: float64(startRow)}
-			result[1] = &zxinggo.ResultPoint{X: float64(loc[1]), Y: float64(startRow)}
-			found = true
-			break
+	// Scan for guard-pattern candidates and validate each one. A candidate is
+	// only accepted if the pattern persists vertically for at least minHeight
+	// rows. Isolated matches — text strokes, dust speckles — fail this check;
+	// we then resume scanning below them instead of giving up, so a real
+	// symbol lower on the page is still found. (The original committed to the
+	// first match and returned nil when it failed validation, which let noisy
+	// pages defeat detection entirely.)
+	row := startRow
+	for row < height {
+		loc := findGuardPattern(matrix, startColumn, row, width, pattern, counters)
+		if loc == nil {
+			row += rowStep
+			continue
 		}
-	}
 
-	stopRow := startRow + 1
-	// Last row of the current symbol that contains pattern
-	if found {
+		// Walk up to the topmost row that still matches the pattern.
+		top := row
+		topLoc := loc
+		for top > 0 {
+			prev := findGuardPattern(matrix, startColumn, top-1, width, pattern, counters)
+			if prev == nil {
+				break
+			}
+			top--
+			topLoc = prev
+		}
+
+		// Walk down to the bottommost row of the same blob.
+		stopRow := top + 1
 		skippedRowCount := 0
-		previousRowLoc := [2]int{int(result[0].X), int(result[1].X)}
+		previousRowLoc := [2]int{topLoc[0], topLoc[1]}
 		for ; stopRow < height; stopRow++ {
-			loc := findGuardPattern(matrix, previousRowLoc[0], stopRow, width, pattern, counters)
-			// a found pattern is only considered to belong to the same barcode
-			// if the start and end positions don't differ too much. Pattern
-			// drift should be not bigger than two for consecutive rows. With a
-			// higher number of skipped rows drift could be larger. To keep it
-			// simple for now, we allow a slightly larger drift and don't check
-			// for skipped rows.
-			if loc != nil &&
-				abs(previousRowLoc[0]-loc[0]) < maxPatternDrift &&
-				abs(previousRowLoc[1]-loc[1]) < maxPatternDrift {
-				previousRowLoc = [2]int{loc[0], loc[1]}
+			downLoc := findGuardPattern(matrix, previousRowLoc[0], stopRow, width, pattern, counters)
+			// A found pattern belongs to the same barcode only if the start
+			// and end positions do not drift too much between consecutive
+			// rows; tolerate a few skipped rows before declaring the bottom.
+			if downLoc != nil &&
+				abs(previousRowLoc[0]-downLoc[0]) < maxPatternDrift &&
+				abs(previousRowLoc[1]-downLoc[1]) < maxPatternDrift {
+				previousRowLoc = [2]int{downLoc[0], downLoc[1]}
 				skippedRowCount = 0
 			} else {
 				if skippedRowCount > skippedRowCountMax {
 					break
-				} else {
-					skippedRowCount++
 				}
+				skippedRowCount++
 			}
 		}
 		stopRow -= skippedRowCount + 1
-		result[2] = &zxinggo.ResultPoint{X: float64(previousRowLoc[0]), Y: float64(stopRow)}
-		result[3] = &zxinggo.ResultPoint{X: float64(previousRowLoc[1]), Y: float64(stopRow)}
-	}
 
-	if stopRow-startRow < minHeight {
-		for i := range result {
-			result[i] = nil
+		if stopRow-top >= minHeight {
+			result[0] = &zxinggo.ResultPoint{X: float64(topLoc[0]), Y: float64(top)}
+			result[1] = &zxinggo.ResultPoint{X: float64(topLoc[1]), Y: float64(top)}
+			result[2] = &zxinggo.ResultPoint{X: float64(previousRowLoc[0]), Y: float64(stopRow)}
+			result[3] = &zxinggo.ResultPoint{X: float64(previousRowLoc[1]), Y: float64(stopRow)}
+			return result
+		}
+
+		// Candidate was too short to be a real guard pattern (noise). Resume
+		// scanning below the blob, always making forward progress.
+		if next := stopRow + 1; next > row+rowStep {
+			row = next
+		} else {
+			row += rowStep
 		}
 	}
 
