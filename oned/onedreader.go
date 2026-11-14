@@ -19,8 +19,10 @@ type RowDecoder interface {
 // PatternRowDecoder decodes from run-length pattern counters, ported from
 // zxing-cpp's RowReader::decodePattern. The view is positioned at the first
 // bar; implementations may advance it and are expected to return quickly.
+// A decoder that has consumed the whole row (zxing-cpp's "next = {}") sets
+// the view to the zero value to stop the driver's TryHarder retry loop.
 type PatternRowDecoder interface {
-	DecodePattern(rowNumber int, view pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error)
+	DecodePattern(rowNumber int, view *pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error)
 }
 
 // DecodeOneD decodes a 1D barcode from an image, ported from zxing-cpp
@@ -97,7 +99,7 @@ func scanOrientation(image *zxinggo.BinaryBitmap, scanner *binarizer.RowScanner,
 			if isPattern {
 				view := pattern.NewView(counters)
 				for {
-					res, err = prd.DecodePattern(rowNumber, view, opts)
+					res, err = prd.DecodePattern(rowNumber, &view, opts)
 					if err == nil && res != nil {
 						break
 					}

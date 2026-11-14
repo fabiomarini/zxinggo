@@ -166,7 +166,7 @@ go test ./...
 ## Features
 
 - All 16 ZXing barcode formats implemented for reading; 13 support writing
-- TryHarder mode with 90-degree rotation for 1D barcodes
+- 90-degree rotation pass for 1D barcodes always on (vertical codes read without TryHarder); TryHarder widens row sampling and detector retries
 - zxing-cpp detection rework: EAN/UPC/DataBar pattern-row scanning, Aztec concentric-ring detector, Data Matrix and QR robustness improvements (see [PARITY.md](PARITY.md))
 - PureBarcode mode for clean renders
 - AlsoInverted mode for scanning white-on-black barcodes
@@ -178,13 +178,13 @@ go test ./...
 - ECI (Extended Channel Interpretation) for PDF417 and Aztec (charset switching mid-barcode)
 - Hybrid and GlobalHistogram binarizers for adaptive and global thresholding
 - Reed-Solomon error correction for all 2D formats (GF(256) for QR/DM/PDF417, GF(16) for Aztec parameters)
-- DMRE (Data Matrix Rectangular Extension) — all 48 versions including ISO 21471:2020 rectangular extensions
+- Data Matrix ECC-200 — all 24 square and 6 rectangular versions; DMRE (ISO 21471:2020) shapes are in the version table and decode partially (6 of 18 zxing-cpp reference renders; the wide 8/12-row variants still fail detection)
 - No CGo, no external C libraries — pure Go, cross-compiles to any platform Go supports
 - Single external dependency — `golang.org/x/text` for CJK charset decoding (Shift_JIS, GB18030)
 
 ## Blackbox Test Results
 
-50 of 50 test suites passing. The project ports the full ZXing blackbox test corpus — 1,124 real-world barcode images tested at multiple rotations (0/90/180/270 degrees), with and without TryHarder mode. Across all tests, 4,583 image+rotation+mode combinations decode successfully against a Java threshold of 4,571.
+50 of 50 test suites passing. The project ports the full ZXing blackbox test corpus — 1,124 real-world barcode images tested at multiple rotations (0/90/180/270 degrees), with and without TryHarder mode. Across all tests, 4,820 image+rotation+mode combinations decode successfully against a pinned threshold of 4,807.
 
 | Format | Test Suites | Status |
 |--------|-------------|--------|
@@ -199,7 +199,7 @@ go test ./...
 | EAN-13 | 5/5 | All passing |
 | EAN-8 | 1/1 | All passing |
 | ITF | 2/2 | All passing |
-| UPC-A | 6/6 | All passing (UPCA-5 thresholds relaxed by 1, see known issues) |
+| UPC-A | 6/6 | All passing (UPCA-5 at 180° decodes one below Java, see known issues) |
 | UPC-E | 3/3 | All passing |
 | RSS-14 | 2/2 | All passing |
 | RSS Expanded | 5/5 | All passing (including stacked) |
@@ -209,8 +209,8 @@ go test ./...
 
 ### Known Issues
 
-1. **TestBlackBoxUPCA5** — Thresholds relaxed by 1 image at each rotation after adding UPC/EAN extension support. At 0 degrees it decodes 19/35 images (Java needs 20) and at 180 degrees it decodes 21/35 (Java needs 22). TryHarder mode meets its thresholds. The root cause appears to be the extension decode logic interfering with quiet zone detection on 1-2 marginal images.
-2. **TestRoundTripUPCA** — Skipped. UPC-A round-trip test has a leading zero discrepancy: encoding "0012345678905" and decoding produces "012345678905" (the leading zero is part of the EAN-13 number system digit, not the UPC-A payload). This is a test expectation issue, not a codec bug.
+1. **TestBlackBoxUPCA5** — After the 1D detection rework, the 0° rotation meets the Java threshold (20/35); at 180° it decodes 21/35, one below Java's 22. Thresholds are pinned to the achieved counts; TryHarder passes 23/35 at both rotations.
+2. **TestRoundTripUPCA** — Skipped. UPC-A is written as EAN-13 with a leading 0, so the test expects the 13-digit "0012345678905" back, but the decoder deliberately reports the stripped 12-digit UPC-A text ("012345678905"). A test-expectation issue, not a codec bug.
 
 ## Performance: Go vs Java ZXing
 
@@ -246,11 +246,11 @@ Benchmarked on Apple M1 Pro, arm64, macOS. Go benchmarks use `testing.B` (3 runs
 
 | Metric | Value |
 |--------|-------|
-| Go source lines | 23,825 (production) + 2,867 (tests) |
+| Go source lines | 27,399 (production) + 3,425 (tests) |
 | Java ZXing source lines | 42,234 (core library) |
-| Go / Java ratio | ~56% the code size |
-| Source files | 121 production, 12 test |
-| Packages | 29 |
+| Go / Java ratio | ~65% the code size |
+| Source files | 127 production, 17 test |
+| Packages | 34 |
 | External dependencies | 1 (`golang.org/x/text`) |
 | Test images | 1,124 images across 50 test directories |
 

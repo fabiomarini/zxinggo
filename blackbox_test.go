@@ -484,8 +484,8 @@ func TestBlackBoxRSS14_2(t *testing.T) {
 		dir:    "rss14-2",
 		format: zxinggo.FormatRSS14,
 		tests: []blackboxTestRotation{
-			rotM(0, 4, 8, 1, 1),
-			rotM(180, 3, 8, 0, 1),
+			rotM(0, 6, 10, 1, 1),
+			rotM(180, 6, 10, 0, 1),
 		},
 	})
 }

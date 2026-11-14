@@ -29,14 +29,6 @@ type rssFinderPattern struct {
 	resultPoints [2]zxinggo.ResultPoint
 }
 
-// rssPair is a left or right pair in RSS-14, consisting of a data value, checksum, and finder pattern.
-type rssPair struct {
-	value           int
-	checksumPortion int
-	finderPattern   rssFinderPattern
-	count           int
-}
-
 // rssParseFinderValue matches counters to known finder patterns and returns the index.
 func rssParseFinderValue(counters []int, finderPatterns [][]int) (int, error) {
 	for value := 0; value < len(finderPatterns); value++ {

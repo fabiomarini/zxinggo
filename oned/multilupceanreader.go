@@ -52,7 +52,8 @@ const (
 )
 
 // DecodePattern implements PatternRowDecoder.
-func (r *MultiUPCEANReader) DecodePattern(rowNumber int, view pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
+func (r *MultiUPCEANReader) DecodePattern(rowNumber int, vp *pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
+	view := *vp
 	const minSize = 3 + 6*4 + 6 // UPC-E
 
 	next := pattern.FindLeftGuard(view, minSize, startEndPattern, quietZoneLeft)
@@ -370,5 +371,6 @@ var (
 
 // DecodeRow adapts a bit row to the pattern-row interface.
 func (r *MultiUPCEANReader) DecodeRow(rowNumber int, row *bitutil.BitArray, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
-	return r.DecodePattern(rowNumber, pattern.NewView(bitRowToCounters(row, nil)), opts)
+	view := pattern.NewView(bitRowToCounters(row, nil))
+	return r.DecodePattern(rowNumber, &view, opts)
 }

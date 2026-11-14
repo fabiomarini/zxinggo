@@ -45,11 +45,13 @@ func NewMultiFormatOneDReader(opts *zxinggo.DecodeOptions) *MultiFormatOneDReade
 		if possibleFormats[zxinggo.FormatCodabar] {
 			readers = append(readers, NewCodabarReader())
 		}
-		if possibleFormats[zxinggo.FormatRSS14] {
-			readers = append(readers, NewRSS14Reader())
-		}
 		if possibleFormats[zxinggo.FormatRSSExpanded] {
 			readers = append(readers, NewRSSExpandedReader())
+		}
+		if possibleFormats[zxinggo.FormatRSS14] {
+			// Last: the DataBar reader consumes the whole row view, which
+			// also stops the driver's TryHarder retry (zxing-cpp behavior).
+			readers = append(readers, NewDataBarReader())
 		}
 	}
 
@@ -61,8 +63,8 @@ func NewMultiFormatOneDReader(opts *zxinggo.DecodeOptions) *MultiFormatOneDReade
 			NewCode128Reader(),
 			NewITFReader(),
 			NewCodabarReader(),
-			NewRSS14Reader(),
 			NewRSSExpandedReader(),
+			NewDataBarReader(),
 		}
 	}
 
@@ -107,7 +109,7 @@ func (r *MultiFormatOneDReader) Decode(image *zxinggo.BinaryBitmap, opts *zxingg
 // DecodePattern tries each sub-reader on a pattern-row view (zxing-cpp
 // RowReader interface). Sub-readers that still consume bit rows get an
 // adapted BitArray, built lazily.
-func (r *MultiFormatOneDReader) DecodePattern(rowNumber int, view pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
+func (r *MultiFormatOneDReader) DecodePattern(rowNumber int, view *pattern.View, opts *zxinggo.DecodeOptions) (*zxinggo.Result, error) {
 	var row *bitutil.BitArray
 	for _, reader := range r.readers {
 		if prd, ok := reader.(PatternRowDecoder); ok {
