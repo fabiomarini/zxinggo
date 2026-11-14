@@ -42,7 +42,7 @@ func averageEdgePixels(cur bmcursor.CursorI, rng, numOfEdges int) (ConcentricPat
 func centerOfDoubleCross(image *bitutil.BitMatrix, center bmcursor.PointI, width, numOfEdges int) (ConcentricPattern, bool) {
 	sumP := bmcursor.PointF{}
 	sumS := 0.0
-	for _, d := range [4]bmcursor.PointI{{0, 1}, {1, 0}, {1, 1}, {1, -1}} {
+	for _, d := range [4]bmcursor.PointI{{X: 0, Y: 1}, {X: 1, Y: 0}, {X: 1, Y: 1}, {X: 1, Y: -1}} {
 		c1 := bmcursor.NewCursorI(image, center, d)
 		c2 := bmcursor.NewCursorI(image, center, d.Neg())
 		avr1, ok1 := averageEdgePixels(c1, width*3/5, numOfEdges)
@@ -78,7 +78,7 @@ func CenterOfRing(image *bitutil.BitMatrix, center bmcursor.PointI, width, nth i
 		nth = -nth
 	}
 
-	cur := bmcursor.NewCursorI(image, center, bmcursor.PointI{1, 0})
+	cur := bmcursor.NewCursorI(image, center, bmcursor.PointI{X: 1, Y: 0})
 	if cur.StepToEdge(nth, maxR, inner, true) == 0 {
 		return ConcentricPattern{}, false
 	}
@@ -100,7 +100,7 @@ func CenterOfRing(image *bitutil.BitMatrix, center bmcursor.PointI, width, nth i
 		// find out if we come full circle around the center; 8 bits have to
 		// be set in the end.
 		bd := bmcursor.BresenhamI(cur.P.Sub(center))
-		neighbourMask |= 1 << (4 + bmcursor.DotI(bd, bmcursor.PointI{1, 3}))
+		neighbourMask |= 1 << (4 + bmcursor.DotI(bd, bmcursor.PointI{X: 1, Y: 3}))
 
 		if !cur.StepAlongEdge(edgeDir, false) {
 			return ConcentricPattern{}, false
@@ -171,7 +171,7 @@ func collectRingPoints(image *bitutil.BitMatrix, center bmcursor.PointF, width, 
 	maxN := 4 * (width + 1) * 3 / 2 // upper limit for circumference of the ring
 	maxR := width * 2
 
-	cur := bmcursor.NewCursorI(image, centerI, bmcursor.PointI{1, 0})
+	cur := bmcursor.NewCursorI(image, centerI, bmcursor.PointI{X: 1, Y: 0})
 	if cur.StepToEdge(edgeIndex, maxR, backup, true) == 0 {
 		return nil
 	}
@@ -190,7 +190,7 @@ func collectRingPoints(image *bitutil.BitMatrix, center bmcursor.PointF, width, 
 
 		// find out if we come full circle around the center
 		bd := bmcursor.BresenhamI(cur.P.Sub(centerI))
-		neighbourMask |= 1 << (4 + bmcursor.DotI(bd, bmcursor.PointI{1, 3}))
+		neighbourMask |= 1 << (4 + bmcursor.DotI(bd, bmcursor.PointI{X: 1, Y: 3}))
 
 		if !cur.StepAlongEdge(edgeDir, false) {
 			return nil
@@ -318,7 +318,7 @@ func LocateConcentricPattern(image *bitutil.BitMatrix, center bmcursor.PointF, w
 	// TODO: setting maxError to 1 can substantially help with symbols with
 	// damaged finder patterns, but it substantially increases the runtime.
 	maxError := 0
-	for _, d := range [2]bmcursor.PointI{{0, 1}, {1, 0}} {
+	for _, d := range [2]bmcursor.PointI{{X: 0, Y: 1}, {X: 1, Y: 0}} {
 		cur.SetDirection(d)
 		spread := checkSymmetricPattern(&cur, rng, true, relaxed)
 		if spread != 0 {
@@ -336,7 +336,7 @@ func LocateConcentricPattern(image *bitutil.BitMatrix, center bmcursor.PointF, w
 		}
 	}
 
-	for _, d := range [2]bmcursor.PointI{{1, 1}, {1, -1}} {
+	for _, d := range [2]bmcursor.PointI{{X: 1, Y: 1}, {X: 1, Y: -1}} {
 		cur.SetDirection(d)
 		spread := checkSymmetricPattern(&cur, rng, false, true)
 		if spread != 0 {

@@ -45,7 +45,7 @@ func IsConvex(q Quad) bool {
 func CenteredSquare(size int) Quad {
 	f := float64(size / 2)
 	return Quad{
-		{-f, -f}, {f, -f}, {f, f}, {-f, f},
+		{X: -f, Y: -f}, {X: f, Y: -f}, {X: f, Y: f}, {X: -f, Y: f},
 	}
 }
 
@@ -77,7 +77,7 @@ func RotatedCorners(q Quad, n int, mirror bool) Quad {
 func RectangleQuad(x0, x1, y0, y1 int, o float64) Quad {
 	xl, xh := float64(x0)+o, float64(x1)+o
 	yt, yb := float64(y0)+o, float64(y1)+o
-	return Quad{{xl, yt}, {xh, yt}, {xh, yb}, {xl, yb}}
+	return Quad{{X: xl, Y: yt}, {X: xh, Y: yt}, {X: xh, Y: yb}, {X: xl, Y: yb}}
 }
 
 // PerspectiveTransform maps module coordinates to pixel coordinates
@@ -174,10 +174,7 @@ func unitSquareTo(q Quad) PerspectiveTransform {
 // (zxing-cpp PerspectiveTransform::operator()).
 func (t PerspectiveTransform) Apply(p bmcursor.PointF) bmcursor.PointF {
 	denominator := t.a13*p.X + t.a23*p.Y + t.a33
-	return bmcursor.PointF{
-		(t.a11*p.X + t.a21*p.Y + t.a31) / denominator,
-		(t.a12*p.X + t.a22*p.Y + t.a32) / denominator,
-	}
+	return bmcursor.PointF{X: (t.a11*p.X + t.a21*p.Y + t.a31) / denominator, Y: (t.a12*p.X + t.a22*p.Y + t.a32) / denominator}
 }
 
 // ROI is a region of interest of the sampled grid with its own projection
@@ -212,7 +209,7 @@ func SampleGridROIs(image *bitutil.BitMatrix, width, height int, rois []ROI) (*b
 		// Precheck the corners of every ROI to bail out early if the grid is
 		// "obviously" not completely inside the image.
 		isInside := func(roi ROI, x, y int) bool {
-			return bmcursor.IsInF(image, roi.Mod2Pix.Apply(bmcursor.CenteredI(bmcursor.PointI{x, y})))
+			return bmcursor.IsInF(image, roi.Mod2Pix.Apply(bmcursor.CenteredI(bmcursor.PointI{X: x, Y: y})))
 		}
 		if !roi.Mod2Pix.IsValid() || !isInside(roi, roi.X0, roi.Y0) || !isInside(roi, roi.X1-1, roi.Y0) ||
 			!isInside(roi, roi.X1-1, roi.Y1-1) || !isInside(roi, roi.X0, roi.Y1-1) {
@@ -224,7 +221,7 @@ func SampleGridROIs(image *bitutil.BitMatrix, width, height int, rois []ROI) (*b
 	for _, roi := range rois {
 		for y := roi.Y0; y < roi.Y1; y++ {
 			for x := roi.X0; x < roi.X1; x++ {
-				p := roi.Mod2Pix.Apply(bmcursor.CenteredI(bmcursor.PointI{x, y}))
+				p := roi.Mod2Pix.Apply(bmcursor.CenteredI(bmcursor.PointI{X: x, Y: y}))
 				// Even when all boundary grid points project inside the image,
 				// an inner grid point may not (numerical instability, #563).
 				if !bmcursor.IsInF(image, p) {
@@ -240,17 +237,17 @@ func SampleGridROIs(image *bitutil.BitMatrix, width, height int, rois []ROI) (*b
 	projectCorner := func(p bmcursor.PointI) bmcursor.PointI {
 		for _, roi := range rois {
 			if roi.X0 <= p.X && p.X <= roi.X1 && roi.Y0 <= p.Y && p.Y <= roi.Y1 {
-				return bmcursor.PointIF(roi.Mod2Pix.Apply(bmcursor.PointFI(p)).Add(bmcursor.PointF{0.5, 0.5}))
+				return bmcursor.PointIF(roi.Mod2Pix.Apply(bmcursor.PointFI(p)).Add(bmcursor.PointF{X: 0.5, Y: 0.5}))
 			}
 		}
 		return bmcursor.PointI{}
 	}
 
 	quad := [4]bmcursor.PointI{
-		projectCorner(bmcursor.PointI{0, 0}),
-		projectCorner(bmcursor.PointI{width, 0}),
-		projectCorner(bmcursor.PointI{width, height}),
-		projectCorner(bmcursor.PointI{0, height}),
+		projectCorner(bmcursor.PointI{X: 0, Y: 0}),
+		projectCorner(bmcursor.PointI{X: width, Y: 0}),
+		projectCorner(bmcursor.PointI{X: width, Y: height}),
+		projectCorner(bmcursor.PointI{X: 0, Y: height}),
 	}
 	return res, quad, true
 }
@@ -267,7 +264,7 @@ func SampleGridAlignment(image *bitutil.BitMatrix, width, height int, mod2Pix Pe
 	for y := range H + 1 {
 		for x := range W + 1 {
 			if !apP[y][x].OK {
-				apP[y][x] = APPoint{mod2Pix.Apply(bmcursor.CenteredI(bmcursor.PointI{apMX[x], apMY[y]})), true}
+				apP[y][x] = APPoint{mod2Pix.Apply(bmcursor.CenteredI(bmcursor.PointI{X: apMX[x], Y: apMY[y]})), true}
 			}
 		}
 	}

@@ -149,7 +149,7 @@ func checkSymmetricAztecCenterPattern(cur *bmcursor.CursorI, rng int, updatePosi
 func locateAztecCenter(image *bitutil.BitMatrix, center bmcursor.PointF, spreadH int) (concentric.ConcentricPattern, bool) {
 	cur := bmcursor.NewCursorI(image, bmcursor.PointIF(center), bmcursor.PointI{})
 	minSpread, maxSpread := spreadH, 0
-	for _, d := range [4]bmcursor.PointI{{0, 1}, {1, 0}, {1, 1}, {1, -1}} {
+	for _, d := range [4]bmcursor.PointI{{X: 0, Y: 1}, {X: 1, Y: 0}, {X: 1, Y: 1}, {X: 1, Y: -1}} {
 		cur.SetDirection(d)
 		spread := checkSymmetricAztecCenterPattern(&cur, spreadH, d.X == 0)
 		if spread == 0 {
@@ -163,7 +163,7 @@ func locateAztecCenter(image *bitutil.BitMatrix, center bmcursor.PointF, spreadH
 		}
 	}
 
-	return concentric.ConcentricPattern{bmcursor.CenteredI(cur.P), float64(maxSpread+minSpread) / 2}, true
+	return concentric.ConcentricPattern{P: bmcursor.CenteredI(cur.P), Size: float64(maxSpread+minSpread) / 2}, true
 }
 
 // findBoundingBox finds the bounding box of the set bits, ignoring results
@@ -209,7 +209,7 @@ func findPureFinderPattern(image *bitutil.BitMatrix) []concentric.ConcentricPatt
 
 	tryLocate := func(l, t, size int) (concentric.ConcentricPattern, bool) {
 		return concentric.LocateConcentricPattern(image,
-			bmcursor.PointF{float64(l + size/2), float64(t + size/2)}, size/2, true)
+			bmcursor.PointF{X: float64(l + size/2), Y: float64(t + size/2)}, size/2, true)
 	}
 
 	// Symbols can have a blank row or column at the edge
@@ -259,10 +259,7 @@ func findFinderPatterns(image *bitutil.BitMatrix, tryHarder bool) []concentric.C
 				break
 			}
 
-			p := bmcursor.PointF{
-				float64(next.PixelsInFront()+next.At(0)+next.At(1)+next.At(2)) + float64(next.At(3))/2.0,
-				float64(y) + 0.5,
-			}
+			p := bmcursor.PointF{X: float64(next.PixelsInFront()+next.At(0)+next.At(1)+next.At(2)) + float64(next.At(3))/2.0, Y: float64(y) + 0.5}
 
 			// make sure p is not 'inside' an already found pattern area
 			found := false
@@ -324,10 +321,10 @@ func findRotation(b uint32, mirror bool) int {
 // pattern at radius (zxing-cpp SampleOrientationBits).
 func sampleOrientationBits(image *bitutil.BitMatrix, mod2Pix localgrid.PerspectiveTransform, radius int) uint32 {
 	var b uint32
-	for _, d := range [4]bmcursor.PointI{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}} {
-		corner := bmcursor.PointI{radius * d.X, radius * d.Y}
-		cornerL := bmcursor.PointI{corner.X, corner.Y - d.Y}
-		cornerR := bmcursor.PointI{corner.X - d.X, corner.Y}
+	for _, d := range [4]bmcursor.PointI{{X: -1, Y: -1}, {X: 1, Y: -1}, {X: 1, Y: 1}, {X: -1, Y: 1}} {
+		corner := bmcursor.PointI{X: radius * d.X, Y: radius * d.Y}
+		cornerL := bmcursor.PointI{X: corner.X, Y: corner.Y - d.Y}
+		cornerR := bmcursor.PointI{X: corner.X - d.X, Y: corner.Y}
 		if d.X != d.Y {
 			cornerL, cornerR = cornerR, cornerL
 		}
@@ -353,17 +350,17 @@ func sampleModeMessage(image *bitutil.BitMatrix, mod2Pix localgrid.PerspectiveTr
 	compact := radius == 5
 
 	var b uint64
-	for _, d := range [4]bmcursor.PointI{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}} {
-		corner := bmcursor.PointI{radius * d.X, radius * d.Y}
-		next := bmcursor.PointI{0, -d.Y}
+	for _, d := range [4]bmcursor.PointI{{X: -1, Y: -1}, {X: 1, Y: -1}, {X: 1, Y: 1}, {X: -1, Y: 1}} {
+		corner := bmcursor.PointI{X: radius * d.X, Y: radius * d.Y}
+		next := bmcursor.PointI{X: 0, Y: -d.Y}
 		if d.X == d.Y {
-			next = bmcursor.PointI{-d.X, 0}
+			next = bmcursor.PointI{X: -d.X, Y: 0}
 		}
 		for i := 2; i <= 2*radius-2; i++ {
 			if !compact && i == 7 {
 				continue // skip the timing pattern
 			}
-			p := mod2Pix.Apply(bmcursor.PointFI(bmcursor.PointI{corner.X + i*next.X, corner.Y + i*next.Y}))
+			p := mod2Pix.Apply(bmcursor.PointFI(bmcursor.PointI{X: corner.X + i*next.X, Y: corner.Y + i*next.Y}))
 			if !bmcursor.IsInF(image, p) {
 				return -1, false, 0
 			}
@@ -525,7 +522,7 @@ func Detect(image *bitutil.BitMatrix, isPure, tryHarder bool) []DetectorResult {
 			dim = 4*nbLayers + 2*((2*nbLayers+6)/15) + 15
 		}
 
-		center := bmcursor.PointF{float64(dim) / 2, float64(dim) / 2}
+		center := bmcursor.PointF{X: float64(dim) / 2, Y: float64(dim) / 2}
 		srcQuad = localgrid.MoveQuad(srcQuad, center)
 		fpQuad = localgrid.RotatedCorners(fpQuad, rotate, mirror == 1)
 		mod2Pix = localgrid.NewPerspectiveTransform(srcQuad, fpQuad)
@@ -582,18 +579,18 @@ func sampleGridRefined(image *bitutil.BitMatrix, dim int, center bmcursor.PointF
 	for y := range n {
 		apP[y] = make([]localgrid.APPoint, n)
 	}
-	apP[n/2][n/2] = localgrid.APPoint{mod2Pix.Apply(center), true} // center point
+	apP[n/2][n/2] = localgrid.APPoint{P: mod2Pix.Apply(center), OK: true} // center point
 
 	for r := R - 1; r >= 0; r-- {
 		srcQuad := localgrid.MoveQuad(localgrid.CenteredSquare(32*(R-r)), center)
-		idxs := [4]bmcursor.PointI{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}}
+		idxs := [4]bmcursor.PointI{{X: -1, Y: -1}, {X: 1, Y: -1}, {X: 1, Y: 1}, {X: -1, Y: 1}}
 		var dstQuad localgrid.Quad
-		grid := localgrid.New(image, mod2Pix, bmcursor.PointI{dim, dim})
+		grid := localgrid.New(image, mod2Pix, bmcursor.PointI{X: dim, Y: dim})
 		for i := range 4 {
-			pi := bmcursor.PointI{(R-r)*idxs[i].X + n/2, (R-r)*idxs[i].Y + n/2}
+			pi := bmcursor.PointI{X: (R-r)*idxs[i].X + n/2, Y: (R-r)*idxs[i].Y + n/2}
 			grid.At(bmcursor.PointIF(srcQuad[i]), bmcursor.PointI{})
 			if p, ok := grid.FindTimingPatternCross(true, 4); ok {
-				apP[pi.Y][pi.X] = localgrid.APPoint{p, true}
+				apP[pi.Y][pi.X] = localgrid.APPoint{P: p, OK: true}
 			}
 			if apP[pi.Y][pi.X].OK {
 				dstQuad[i] = apP[pi.Y][pi.X].P
@@ -605,13 +602,13 @@ func sampleGridRefined(image *bitutil.BitMatrix, dim int, center bmcursor.PointF
 	}
 
 	// find the remaining (non-corner) alignment patterns
-	grid := localgrid.New(image, mod2Pix, bmcursor.PointI{dim, dim})
+	grid := localgrid.New(image, mod2Pix, bmcursor.PointI{X: dim, Y: dim})
 	for y := range n {
 		for x := range n {
 			if !apP[y][x].OK {
-				grid.At(bmcursor.PointI{apM[x], apM[y]}, bmcursor.PointI{})
+				grid.At(bmcursor.PointI{X: apM[x], Y: apM[y]}, bmcursor.PointI{})
 				if p, ok := grid.FindTimingPatternCross(true, 4); ok {
-					apP[y][x] = localgrid.APPoint{p, true}
+					apP[y][x] = localgrid.APPoint{P: p, OK: true}
 				}
 			}
 		}

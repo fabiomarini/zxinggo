@@ -61,7 +61,7 @@ func intersect(l1, l2 regLine) bmcursor.PointF {
 	d := l1.a*l2.b - l1.b*l2.a
 	x := (l1.c*l2.b - l1.b*l2.c) / d
 	y := (l1.a*l2.c - l1.c*l2.a) / d
-	return bmcursor.PointF{x, y}
+	return bmcursor.PointF{X: x, Y: y}
 }
 
 // fitQuadrilateralToPoints fits a quadrilateral to a closed ring of points

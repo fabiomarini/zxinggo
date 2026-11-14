@@ -34,7 +34,7 @@ func (g LocalGrid) GetPos(p bmcursor.PointF) bmcursor.PointF {
 
 // GetPosI maps an integer module-space offset to pixels.
 func (g LocalGrid) GetPosI(p bmcursor.PointI) bmcursor.PointF {
-	return g.GetPos(bmcursor.PointF{float64(p.X), float64(p.Y)})
+	return g.GetPos(bmcursor.PointF{X: float64(p.X), Y: float64(p.Y)})
 }
 
 // Get returns the image value at a module-space offset.
@@ -44,7 +44,7 @@ func (g LocalGrid) Get(p bmcursor.PointF) bmcursor.Value {
 
 // GetI returns the image value at an integer module-space offset.
 func (g LocalGrid) GetI(p bmcursor.PointI) bmcursor.Value {
-	return g.Get(bmcursor.PointF{float64(p.X), float64(p.Y)})
+	return g.Get(bmcursor.PointF{X: float64(p.X), Y: float64(p.Y)})
 }
 
 func (g *LocalGrid) moveBy(offset bmcursor.PointI) {
@@ -59,11 +59,11 @@ func (g *LocalGrid) At(p, offset bmcursor.PointI) {
 	g.Center = p
 	c := bmcursor.CenteredI(p)
 	g.Origin = g.Mod2Pix.Apply(c)
-	g.StepX = g.Mod2Pix.Apply(c.Add(bmcursor.PointF{1, 0})).Sub(g.Origin)
-	g.StepY = g.Mod2Pix.Apply(c.Add(bmcursor.PointF{0, 1})).Sub(g.Origin)
+	g.StepX = g.Mod2Pix.Apply(c.Add(bmcursor.PointF{X: 1, Y: 0})).Sub(g.Origin)
+	g.StepY = g.Mod2Pix.Apply(c.Add(bmcursor.PointF{X: 0, Y: 1})).Sub(g.Origin)
 
 	offsets := []bmcursor.PointI{
-		{-1, 0}, {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1},
+		{X: -1, Y: 0}, {X: -1, Y: -1}, {X: 0, Y: -1}, {X: 1, Y: -1}, {X: 1, Y: 0}, {X: 1, Y: 1}, {X: 0, Y: 1}, {X: -1, Y: 1},
 	}
 
 	g.moveBy(offset)
@@ -87,7 +87,7 @@ func (g LocalGrid) findValue(p bmcursor.PointI, r int, dir bmcursor.PointI, v bm
 		d.Y = 0.25
 	}
 	p = p.Add(dir.Mul(r))
-	pf := bmcursor.PointF{float64(p.X), float64(p.Y)}
+	pf := bmcursor.PointF{X: float64(p.X), Y: float64(p.Y)}
 	return g.Get(pf) == v || g.Get(pf.Add(d)) == v || g.Get(pf.Sub(d)) == v
 }
 
@@ -188,7 +188,7 @@ func (g LocalGrid) estimateModSize(dir bmcursor.PointF, modSize float64, limit, 
 			scanE2ERay(g.Origin, dir.Neg())
 		default:
 			for i := 1; i <= last; i++ {
-				pos := g.GetPosI(bmcursor.PointI{i * o.X, i * o.Y})
+				pos := g.GetPosI(bmcursor.PointI{X: i * o.X, Y: i * o.Y})
 				scanE2ERay(pos, dir.Neg())
 				scanE2ERay(pos, dir)
 			}
@@ -382,16 +382,16 @@ func (g *LocalGrid) adjustOriginAndStep(axis bool, first, last int, offsets []bm
 func (g *LocalGrid) tuneFromTiming(start bmcursor.PointI, dirs string, radius int) bool {
 	var dirX, dirY []bmcursor.PointI
 	if containsByte(dirs, 'l') {
-		dirX = append(dirX, bmcursor.PointI{-1, 0})
+		dirX = append(dirX, bmcursor.PointI{X: -1, Y: 0})
 	}
 	if containsByte(dirs, 'r') {
-		dirX = append(dirX, bmcursor.PointI{1, 0})
+		dirX = append(dirX, bmcursor.PointI{X: 1, Y: 0})
 	}
 	if containsByte(dirs, 'u') {
-		dirY = append(dirY, bmcursor.PointI{0, -1})
+		dirY = append(dirY, bmcursor.PointI{X: 0, Y: -1})
 	}
 	if containsByte(dirs, 'd') {
-		dirY = append(dirY, bmcursor.PointI{0, 1})
+		dirY = append(dirY, bmcursor.PointI{X: 0, Y: 1})
 	}
 
 	g.moveBy(start)
@@ -430,7 +430,7 @@ func (g LocalGrid) isTimingPatternCross(p bmcursor.PointI, isBlack bool, radius,
 		check := func(x, y int) {
 			x = wrapOffset(g.Center.X, x, g.Dim.X)
 			y = wrapOffset(g.Center.Y, y, g.Dim.Y)
-			d := bmcursor.PointI{x, y}
+			d := bmcursor.PointI{X: x, Y: y}
 			want := bmcursor.White
 			if (x+y)%2 == bool2int(!isBlack) {
 				want = bmcursor.Black
